@@ -11,19 +11,19 @@ from src.models.heads.classification_head import ClassificationHead
 
 class BaseModel(nn.Module):
     """
-    组合特征提取器和模型头的顶层模型。
-    根据配置文件动态加载和初始化特征提取器和模型头。
+    The top model that combines the feature extractor and model head.
+    Dynamically load and initialize the feature extractor and model head according to the configuration file.
     """
     def __init__(self, config: dict):
         """
         Args:
-            config (dict): 完整的实验配置字典，包含 model 相关的配置信息。
-                           例如 config['model']['feature_extractor'] 和 config['model']['head']。
+            config (dict): A complete experiment configuration dictionary, including model-related configuration information.
+                           config['model']['feature_extractor'] and config['model']['head']
         """
         super(BaseModel, self).__init__()
         self.config = config
 
-        # 1. 初始化特征提取器
+        # initialize the feature extractor
         fe_cfg = config['model']['feature_extractor']
         if fe_cfg['name'] == 'ResNet18':
             self.feature_extractor = EEGResNet18(
@@ -33,7 +33,7 @@ class BaseModel(nn.Module):
         else:
             raise ValueError(f"Unknown feature extractor specified in config: {fe_cfg['name']}")
 
-        # 2. 初始化模型头
+        # initialize the model header
         head_cfg = config['model']['head']
         head_input_dim = fe_cfg['embedding_dim'] 
         
@@ -50,9 +50,9 @@ class BaseModel(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x (torch.Tensor): 原始 EEG 输入数据，形状为 (batch_size, in_channels, time_points)。
+            x (torch.Tensor): raw EEG input date, (batch_size, in_channels, time_points)。
         Returns:
-            torch.Tensor: 模型的最终输出 (例如分类 logits 或回归预测)。
+            torch.Tensor: final output
         """
         features = self.feature_extractor(x)
         output = self.head(features)
