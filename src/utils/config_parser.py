@@ -5,13 +5,13 @@ from pathlib import Path
 
 def load_config(config_path: str) -> dict:
     """
-    加载并解析 YAML 配置文件。
+    Load and parse YAML configuration files.
 
     Args:
-        config_path (str): 配置文件的路径。
+        config_path (str): The path to the configuration file.
 
     Returns:
-        dict: 解析后的配置字典。
+        dict: The parsed configuration dictionary.
     """
     file_path = Path(config_path)
     if not file_path.exists():
@@ -23,11 +23,11 @@ def load_config(config_path: str) -> dict:
 
 def save_config(config: dict, config_path: str):
     """
-    保存配置字典到 YAML 文件。
+    Save the configuration dictionary to a YAML file.
 
     Args:
-        config (dict): 要保存的配置字典。
-        config_path (str): 保存配置文件的路径。
+        config (dict): The configuration dictionary to save.
+        config_path (str): The path to save the configuration files.
     """
     file_path = Path(config_path)
     file_path.parent.mkdir(parents=True, exist_ok=True) # Ensure directory exists

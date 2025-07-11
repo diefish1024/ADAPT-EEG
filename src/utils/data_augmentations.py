@@ -5,15 +5,15 @@ import numpy as np
 
 class EEGTransform:
     """
-    EEG 数据增强的基类。
-    所有 EEG 转换应继承此类并实现 __call__ 方法。
+    Base class for EEG data augmentation.
+    All EEG transformations should inherit this class and implement the __call__ method.
     """
     def __call__(self, eeg_data: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError("Subclasses must implement __call__ method.")
 
 class AdditiveNoise(EEGTransform):
     """
-    向 EEG 数据添加高斯噪声。
+    Add Gaussian noise to EEG data.
     """
     def __init__(self, noise_std: float = 0.05):
         self.noise_std = noise_std
@@ -21,44 +21,43 @@ class AdditiveNoise(EEGTransform):
     def __call__(self, eeg_data: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            eeg_data (torch.Tensor): 输入 EEG 数据，形状通常为 (channels, timepoints) 或 (batch, channels, timepoints)。
-                                     这里假设 (channels, timepoints)。
+            eeg_data (torch.Tensor): (channels, timepoints)。
         Returns:
-            torch.Tensor: 添加噪声后的 EEG 数据。
+            torch.Tensor: EEG data after adding noise.
         """
         noise = torch.randn_like(eeg_data) * self.noise_std
         return eeg_data + noise
 
 class ChannelDropout(EEGTransform):
     """
-    随机丢弃部分 EEG 通道，将对应通道的数据置零。
+    Randomly discard some EEG channels and set the data of the corresponding channels to zero.
     """
     def __init__(self, p_dropout: float = 0.1):
         """
         Args:
-            p_dropout (float): 每个通道被丢弃的概率。
+            p_dropout (float): The probability of each channel being dropped.
         """
         self.p_dropout = p_dropout
 
     def __call__(self, eeg_data: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            eeg_data (torch.Tensor): 输入 EEG 数据，形状 (channels, timepoints)。
+            eeg_data (torch.Tensor): inputs EEG data, (channels, timepoints)。
         Returns:
-            torch.Tensor: 部分通道被置零的 EEG 数据。
+            torch.Tensor: EEG data with some channels zeroed.
         """
         if eeg_data.dim() < 2:
             raise ValueError("EEG data must have at least 2 dimensions (channels, timepoints).")
         
         num_channels = eeg_data.shape[0]
-        # 创建一个掩码，随机选择要丢弃的通道
+        # Create a mask that randomly selects channels to discard
         mask = (torch.rand(num_channels) > self.p_dropout).float().to(eeg_data.device)
-        # 将掩码扩展到 (channels, 1) 以便与 (channels, timepoints) 进行广播相乘
+        # Expand mask to (channels, 1) for broadcast multiplication with (channels, timepoints)
         return eeg_data * mask.unsqueeze(1)
 
 class TimeShift(EEGTransform):
     """
-    对 EEG 信号沿时间维度进行随机平移。
+    Randomly shift the EEG signal along the time dimension.
     """
     def __init__(self, max_shift_rate: float = 0.1):
         self.max_shift_rate = max_shift_rate
@@ -81,7 +80,7 @@ class TimeShift(EEGTransform):
         
 class Compose:
     """
-    将多个 EEG 转换组合在一起。
+    Combine multiple EEG transformations together.
     """
     def __init__(self, transforms):
         self.transforms = transforms

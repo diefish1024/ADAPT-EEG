@@ -4,7 +4,9 @@ import logging
 from pathlib import Path
 import datetime
 
-def setup_logger(log_dir: str = 'results/logs', log_file_name: str = None) -> logging.Logger:
+from typing import Optional
+
+def setup_logger(log_dir: str = 'results/logs', log_file_name: Optional[str] = None) -> logging.Logger:
     """
     设置项目专用的日志记录器。
     日志将同时输出到控制台和指定文件。

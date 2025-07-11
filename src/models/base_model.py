@@ -39,8 +39,8 @@ class BaseModel(nn.Module):
         
         if head_cfg['type'] == 'classification':
             self.head = ClassificationHead(
-                input_dim=head_input_dim,
-                num_classes=head_cfg['num_classes']
+                num_classes=head_cfg['num_classes'],
+                embedding_dim=head_input_dim
             )
         else:
             raise ValueError(f"Unknown model head type specified in config: {head_cfg['type']}")
