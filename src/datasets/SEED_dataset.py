@@ -4,9 +4,11 @@ from torch.utils.data import Dataset
 import os
 import scipy.io as sio
 import numpy as np
-from typing import Optional
+from typing import Optional, List, Dict, Tuple, Any, Callable
 
-class SEED(Dataset):
+from .base_dataset import BaseDataset
+
+class SEEDDataset(BaseDataset):
     """
     load and preprocess SEED_EEG data
     """
@@ -16,7 +18,7 @@ class SEED(Dataset):
                  subject_ids: list,
                  session_ids: list,
                  data_type: str = 'de_features', # 'processed_eeg' / 'de_features'
-                 transform=None,
+                 transform: Optional[Callable] = None,
                  label_mapping: Optional[dict] = None):
         """
         15 subjects * 3 experiments/subject
@@ -25,6 +27,8 @@ class SEED(Dataset):
         transform: Transformation to apply to the data samples.
         label_mapping: Dictionary used to map original labels (-1, 0, 1) to labels used by the model (0, 1, 2).
         """
+        super().__init__(transform=transform) 
+
         self.root_dir = root_dir
         self.subject_ids = subject_ids
         self.session_ids = session_ids if session_ids is not None else [1, 2, 3]
