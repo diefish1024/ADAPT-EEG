@@ -119,7 +119,7 @@ class ResNet18(nn.Module):
 
         # (batch_size, 512, 1) -> (batch_size, 512)
         x = self.avgpool(x)
-        x = torch.flatten(x, 1) # (batch, channels, 1) 变-> (batch, channels)
+        x = torch.flatten(x, 1) # (batch, channels, 1) -> (batch, channels)
 
         x = self.fc(x) # mapping to embedding_dim
 
