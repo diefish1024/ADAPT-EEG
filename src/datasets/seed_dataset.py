@@ -1,4 +1,4 @@
-# src/datasets/SEED_dataset.py
+# src/datasets/seed_dataset.py
 import torch
 from torch.utils.data import Dataset
 import os
