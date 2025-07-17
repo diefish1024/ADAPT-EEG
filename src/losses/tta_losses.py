@@ -2,89 +2,103 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, Union, Dict
+from typing import Optional, Union, Dict, Literal
 
 class EntropyMinimizationLoss(nn.Module):
     """
     Entropy Minimization Loss, commonly used for Test-Time Adaptation (TTA).
     Aims to make the model produce high-confidence predictions on target domain data by reducing prediction entropy.
-    For regression, it minimizes the entropy of the predicted distribution (by minimizing variance).
+ 
+    For classification, it minimizes the Shannon entropy of the predicted probability distribution.
+    For regression, it minimizes the entropy of the predicted Gaussian distribution, which is
+    equivalent to minimizing its variance (log_sigma_sq).
     """
-    def __init__(self, reduction: str = 'mean'):
+    def __init__(self, task_type: Literal['classification', 'regression'], reduction: str = 'mean'):
         """
         Initializes the Entropy Minimization Loss.
-
+ 
         Args:
+            task_type (Literal['classification', 'regression']): Specifies the type of task
+                                                          this loss will be applied to.
             reduction (str): Specifies the reduction to apply: 'mean' | 'sum' | 'none'. Defaults to 'mean'.
         """
         super().__init__()
+        if task_type not in ['classification', 'regression']:
+            raise ValueError(f"Unsupported task_type: '{task_type}'. Must be 'classification' or 'regression'.")
+        self.task_type = task_type
+ 
         if reduction not in ['mean', 'sum', 'none']:
             raise ValueError(f"Reduction method '{reduction}' not supported.")
         self.reduction = reduction
-
+ 
     def _calculate_classification_entropy(self, logits: torch.Tensor) -> torch.Tensor:
         """
         Calculates the entropy for classification logits.
         H(p) = - sum(p * log p)
-
+ 
         Args:
             logits (torch.Tensor): Raw model outputs (logits) before softmax. Shape (N, C).
-
+ 
         Returns:
-            torch.Tensor: Entropy per sample.
+            torch.Tensor: Entropy per sample. Shape (N,).
         """
-        # F.softmax and F.log_softmax provide numerically stable computations
         prob = F.softmax(logits, dim=-1)
         log_prob = F.log_softmax(logits, dim=-1)
         
-        # Handle log(0) which becomes -inf, leading to 0 * -inf.
-        # This is typically handled by torch.log_softmax which returns -inf where prob is 0,
-        # and then (prob * log_prob) correctly evaluates to 0 in that case.
+        # Calculate entropy: -sum(p * log(p)).
+        # torch.log_softmax handles numerical stability for log(0) cases by returning -inf.
+        # When multiplied by prob (which is 0 in that case), it effectively becomes 0.
         entropy_per_sample = -(prob * log_prob).sum(dim=-1)
         return entropy_per_sample
-
+ 
     def _calculate_regression_uncertainty_minimization(self, log_sigma_sq: torch.Tensor) -> torch.Tensor:
         """
         Calculates a term for uncertainty minimization in regression, equivalent to minimizing Gaussian entropy.
         For a Gaussian distribution, H(X) = 0.5 * log(2 * pi * e * sigma^2).
-        Minimizing H(X) is equivalent to minimizing log(sigma^2).
-
+        Minimizing H(X) is equivalent to minimizing log(sigma^2) (assuming other terms are constant).
+        This function directly returns log_sigma_sq, which when minimized, reduces uncertainty.
+ 
         Args:
-            log_sigma_sq (torch.Tensor): Model's predicted log-variance (N, D).
-
+            log_sigma_sq (torch.Tensor): Model's predicted log-variance. Shape (N, D).
+                                         N is batch size, D is number of regression dimensions.
+ 
         Returns:
-            torch.Tensor: Mean log-variance per sample, serving as the uncertainty minimization term.
+            torch.Tensor: log-variance per sample, averaged across regression dimensions if D > 1.
+                          If D=1, shape is (N,). If D>1 and reduction='mean' in forward,
+                          it will be averaged across (N*D) elements.
         """
-        # Summing log_sigma_sq across dimensions as Gaussian entropy is additive for independent dimensions
-        # Then average across dimensions for multi-dimensional regression
-        return log_sigma_sq
-
-    def forward(self, inputs: torch.Tensor, task_type: str = 'classification') -> torch.Tensor:
+        # For multi-dimensional regression, the total entropy of N independent Gaussians
+        # is the sum of their individual entropies. Minimizing the sum of log_sigma_sq
+        # across dimensions is equivalent to minimizing total entropy.
+        # Here we return the log_sigma_sq as is, and the 'reduction' in forward will handle
+        # whether to sum across dimensions and/or batch.
+        return log_sigma_sq # Shape (N, D) or (N,)
+ 
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
-        Computes the entropy minimization loss.
-
+        Computes the entropy minimization loss based on the initialized task_type.
+ 
         Args:
             inputs (torch.Tensor):
-                - For 'classification': Raw classification logits of shape (N, C).
-                - For 'regression': Predicted log_sigma_sq of shape (N, D).
-            task_type (str): 'classification' or 'regression'.
-
+                - If task_type is 'classification': Raw classification logits of shape (N, C).
+                - If task_type is 'regression': Predicted log_sigma_sq of shape (N, D).
+ 
         Returns:
-            torch.Tensor: Computed entropy minimization loss.
+            torch.Tensor: Computed entropy minimization loss after applying the specified reduction.
         """
-        if task_type == 'classification':
-            per_sample_loss = self._calculate_classification_entropy(inputs)
-        elif task_type == 'regression':
-            per_sample_loss = self._calculate_regression_uncertainty_minimization(inputs)
-        else:
-            raise ValueError(f"Unsupported task_type: {task_type}. Must be 'classification' or 'regression'.")
-
+        if self.task_type == 'classification':
+            per_sample_term = self._calculate_classification_entropy(inputs) # Shape (N,)
+        elif self.task_type == 'regression':
+            per_sample_term = self._calculate_regression_uncertainty_minimization(inputs) # Shape (N, D) or (N,)
+        
+        # Apply reduction. Note: for regression, if per_sample_term is (N, D),
+        # 'mean' reduction will average over N*D elements.
         if self.reduction == 'mean':
-            return per_sample_loss.mean()
+            return per_sample_term.mean()
         elif self.reduction == 'sum':
-            return per_sample_loss.sum()
+            return per_sample_term.sum()
         else: # 'none'
-            return per_sample_loss
+            return per_sample_term
 
 class UncertaintyWeightedConsistencyLoss(nn.Module):
     """
