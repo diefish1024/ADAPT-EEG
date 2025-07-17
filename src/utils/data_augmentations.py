@@ -9,7 +9,7 @@ class EEGTransform:
     All EEG transformations should inherit this class and implement the __call__ method.
     """
     def __call__(self, eeg_data: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError("Subclasses must implement __call__ method.")
+        return eeg_data
 
 class AdditiveNoise(EEGTransform):
     """
@@ -89,3 +89,16 @@ class Compose:
         for t in self.transforms:
             eeg_data = t(eeg_data)
         return eeg_data
+
+def get_eeg_augmentations(config: dict) -> EEGTransform:
+    """
+    Returns a composition of EEG data augmentations based on config.
+    """
+    transforms = []
+    if config.get('random_noise', False):
+        transforms.append(AdditiveNoise(config['noise_std']))
+ 
+    if not transforms:
+        return EEGTransform()
+    
+    return Compose(transforms)
