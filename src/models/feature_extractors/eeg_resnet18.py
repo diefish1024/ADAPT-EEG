@@ -1,4 +1,4 @@
-# src/models/feature_extractors/resnet18.py
+# src/models/feature_extractors/eeg_resnet18.py
 
 import torch
 import torch.nn as nn
@@ -6,7 +6,7 @@ import torch.nn as nn
 class BasicBlock1D(nn.Module):
     expansion = 1 # for ResNet-18/34, output channels = input channels
     
-    def __init__(self, in_channels, out_channels, stride=1, downsample=None):
+    def __init__(self, in_channels: int, out_channels: int, stride: int = 1, downsample: nn.Module = None):
         super(BasicBlock1D, self).__init__()
         self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size=3, stride=stride,
                                padding=1, bias=False)
@@ -18,7 +18,7 @@ class BasicBlock1D(nn.Module):
         self.downsample = downsample # match dimensions when stride != 1 or in_channels != out_channels
         self.stride = stride
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         identity = x
 
         out = self.conv1(x)
@@ -37,24 +37,24 @@ class BasicBlock1D(nn.Module):
         return out
 
 # --- 1D ResNet Class ---
-class ResNet18(nn.Module):
-    def __init__(self, block, layers, in_channels=62, embedding_dim=512):
+class EEGResNet18(nn.Module): # Class name changed to EEGResNet18
+    def __init__(self, in_channels: int = 62, embedding_dim: int = 256):
         """
         Args:
-            block: BasicBlock1D
-            layers: A list specifying the number of residual blocks at each stage (e.g., [2, 2, 2, 2] for ResNet-18)
             in_channels: The number of EEG input channels (62 for SEED dataset raw EEG)
             embedding_dim: Dimensions of feature vector output
         """
-        super(ResNet18, self).__init__()
-        self.in_channels = 64 # out_channels of ResNet
-        self.embedding_dim = embedding_dim
+        super(EEGResNet18, self).__init__()
+        # Ensure 'block' and 'layers' are consistent with ResNet18 structure
+        block = BasicBlock1D
+        layers = [2, 2, 2, 2] # ResNet-18 specific layer configuration
+
+        self.in_channels_current = 64 # out_channels of first conv, this will be updated in _make_layer
+        self.output_dim = embedding_dim # This will be the final output dimension of the extractor
         
         # Initial convolutional layer
-        # The kernel_size and stride here need to be adjusted according to
-        # the actual number of time points in the EEG data and the desired downsampling rate
-        self.conv1 = nn.Conv1d(in_channels, self.in_channels, kernel_size=7, stride=2, padding=3, bias=False)
-        self.bn1 = nn.BatchNorm1d(self.in_channels)
+        self.conv1 = nn.Conv1d(in_channels, self.in_channels_current, kernel_size=7, stride=2, padding=3, bias=False)
+        self.bn1 = nn.BatchNorm1d(self.in_channels_current)
         self.relu = nn.ReLU(inplace=True)
         
         # Initial pooling layer
@@ -69,7 +69,8 @@ class ResNet18(nn.Module):
         # Global average pooling ((batch_size, channels, timepoints) -> (batch_size, channels))
         self.avgpool = nn.AdaptiveAvgPool1d(1) 
         
-        self.fc = nn.Linear(512 * block.expansion, embedding_dim)
+        # Final fully connected layer to map to embedding_dim
+        self.fc = nn.Linear(512 * block.expansion, self.output_dim)
 
         # initialize weights 
         for m in self.modules():
@@ -79,31 +80,32 @@ class ResNet18(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-    def _make_layer(self, block, out_channels, blocks, stride=1):
+    def _make_layer(self, block: nn.Module, out_channels: int, blocks: int, stride: int = 1) -> nn.Sequential:
         """
         Create a phase of ResNet
         """
         downsample = None
         # downsample the identity or adjust the number of channels
-        if stride != 1 or self.in_channels != out_channels * block.expansion:
+        if stride != 1 or self.in_channels_current != out_channels * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv1d(self.in_channels, out_channels * block.expansion,
+                nn.Conv1d(self.in_channels_current, out_channels * block.expansion,
                           kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm1d(out_channels * block.expansion),
             )
 
         layers = []
-        layers.append(block(self.in_channels, out_channels, stride, downsample))
-        self.in_channels = out_channels * block.expansion # update input channels
+        layers.append(block(self.in_channels_current, out_channels, stride, downsample))
+        self.in_channels_current = out_channels * block.expansion # update input channels for next block
 
         # append remaining blocks
         for _ in range(1, blocks):
-            layers.append(block(self.in_channels, out_channels))
+            layers.append(block(self.in_channels_current, out_channels))
 
         return nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
+        Expected input: (batch_size, in_channels, time_points)
         Returns:
             x: (batch_size, embedding_dim)
         """
@@ -125,8 +127,7 @@ class ResNet18(nn.Module):
 
         return x
 
-def EEGResNet18(in_channels=62, embedding_dim=256):
-    """
-    Create a ResNet-18 model instance for EEG
-    """
-    return ResNet18(BasicBlock1D, [2, 2, 2, 2], in_channels=in_channels, embedding_dim=embedding_dim)
+# Factory function to create an instance with default ResNet18 configuration
+def build_eeg_resnet18(in_channels: int = 62, embedding_dim: int = 256) -> EEGResNet18:
+    return EEGResNet18(in_channels=in_channels, embedding_dim=embedding_dim)
+

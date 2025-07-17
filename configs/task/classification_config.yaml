@@ -1,0 +1,10 @@
+# configs/task/classification_config.yaml
+
+type: "classification"
+num_classes: 3
+loss_function: "CrossEntropyLoss"
+metrics:
+  - "accuracy"
+  - "f1_weighted"
+  - "precision_weighted"
+  - "recall_weighted"

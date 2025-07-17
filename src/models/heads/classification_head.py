@@ -4,22 +4,23 @@ import torch
 import torch.nn as nn
 
 class ClassificationHead(nn.Module):
-    def __init__(self, num_classes, embedding_dim=512):
+    def __init__(self, input_dim: int, num_classes: int):
         """
         Args:
+            input_dim: The dimension of the feature vector from the feature extractor.
             num_classes: The number of categories for the classification task.
-            embedding_dim: The dimension of the feature vector, the same as the dimension of the feature extractor output.
         """
         super(ClassificationHead, self).__init__()        
-        self.fc = nn.Linear(embedding_dim, num_classes)
+        self.fc = nn.Linear(input_dim, num_classes)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: imput feature vector, (batch_size, embedding_dim)。
+            x: input feature vector, (batch_size, input_dim).
         
         Returns:
-            logits: classfication results, (batch_size, num_classes)。
+            logits: classification results, (batch_size, num_classes).
         """
         logits = self.fc(x)
         return logits
+
