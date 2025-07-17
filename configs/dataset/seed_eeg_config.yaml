@@ -1,0 +1,30 @@
+# configs/dataset/seed_eeg_config.yaml
+
+name: SEED
+data_dir: "data/raw/seed"
+sfreq: 200.0
+
+preprocess:
+  # Bandpass filter setting
+  filter:
+    enable: True
+    lowcut: 4.0
+    highcut: 45.0
+    order: 5
+
+eeg_key_prefix_map_path: "data/processed/seed/seed_eeg_key_prefixes.json"
+
+feature_extraction:
+  # enable: True
+  # type: "de"
+  # bands:
+  #   delta: [1.0, 4.0]
+  #   theta: [4.0, 8.0]
+  #   alpha: [8.0, 13.0]
+  #   bera: [13.0, 30.0]
+  #   gamma: [30.0, 45.0]
+  enable: False
+  type: "raw"
+  bands: {}
+
+normalize: True

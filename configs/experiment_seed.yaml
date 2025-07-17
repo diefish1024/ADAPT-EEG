@@ -1,0 +1,45 @@
+# configs/experiment_seed.yaml
+
+experiment:
+  name: "SEED_Tent"
+  description: "SEED dataset, Leave-One-Subject-Out like setup for Tent TTA with dynamic feature extractor based on preprocessing (DE/Raw EEG)."
+
+paths:
+  results_dir: "results"
+
+dataset:
+  _include: "dataset/seed_eeg_config.yaml"
+  source_train_subjects: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] 
+  source_train_sessions: [1, 2, 3] 
+
+  source_val_subjects: [14] 
+  source_val_sessions: [1, 2, 3] 
+
+  target_test_subjects: [15] 
+  target_test_sessions: [1, 2, 3] 
+
+model:
+  _include: "model/eeg_model_config.yaml"
+
+task:
+  _include: "task/classification_config.yaml"
+
+training:
+  device: "cuda"
+  seed: 42
+  batch_size: 64
+  epochs: 50
+  optimizer:
+    type: Adam
+    lr: 0.001
+  early_stopping:
+    monitor_metric: "loss"
+    patience: 10
+    mode: "min" # 'min' for loss, 'max' for accuracy/R2
+  log_interval: 10
+  num_workers: 0 # the num of workers of Dataloader
+
+tta:
+  enable: True
+  _include: "tta/tent_tta_config.yaml"
+  test_batch_size: 32 # batch size for TTA and testing, usually smaller than training

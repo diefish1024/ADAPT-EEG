@@ -1,0 +1,9 @@
+# configs/tta/tent_tta_config.yaml
+
+method: "Tent"
+
+adapt_steps: 1
+
+# Loss weights for TTA specific losses
+loss_weights:
+  entropy_loss_weight: 1.0
