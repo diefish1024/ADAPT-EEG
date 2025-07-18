@@ -38,6 +38,7 @@ training:
     mode: "min" # 'min' for loss, 'max' for accuracy/R2
   log_interval: 10
   num_workers: 0 # the num of workers of Dataloader
+  load_pretrained_checkpoint_path: null
 
 tta:
   enable: True

@@ -13,7 +13,6 @@ from src.utils import set_seed
 from src.utils.logger import get_logger, configure_app_logger
 from src.datasets import get_eeg_dataset
 from src.models import get_eeg_model
-from src.losses import get_losses
 from src.trainers.source_trainer import SourceTrainer
 from src.trainers.tta_trainer import TTATrainer
 from src.utils.data_utils import custom_collate_fn
@@ -95,7 +94,7 @@ def main(config_path: str):
     target_test_dataset = get_eeg_dataset(
         dataset_name=dataset_name,
         data_dir=data_dir,
-        subject_ids=config['dataset']['target_test_subjects'],
+        subject_ids=config['dataset'].get('target_test_subjects'),
         session_ids=config['dataset'].get('target_test_sessions'),
         task_type=task_type,
         preprocess_config=preprocess_config,
@@ -114,24 +113,49 @@ def main(config_path: str):
     model = get_eeg_model(config['model'], preprocess_config).to(device)
     # main_logger.info(f"Model architecture:\n{model}")
 
-    # 5. Loss Functions
-    losses = get_losses(config)
+    # 5. Source Domain Pre-training or Checkpoint Loading
+    checkpoint_to_load = config['training'].get('load_pretrained_checkpoint_path', None)
+    train_source_model = False
 
-    # 6. Source Domain Pre-training
-    main_logger.info("Starting source domain pre-training phase.")
-    source_trainer = SourceTrainer(
-        model=model,
-        train_loader=source_train_loader,
-        val_loader=source_val_loader,
-        optimizer_config=config['training']['optimizer'],
-        config=config,
-        device=device,
-    )
-    # The source_trainer will save the best model and load it back into `model` internally
-    trained_model = source_trainer.train() 
-    main_logger.info("Source domain pre-training complete. Best model loaded.")
+    if checkpoint_to_load:
+        if os.path.exists(checkpoint_to_load):
+            main_logger.info(f"Loading pre-trained model from: {checkpoint_to_load}")
+            try:
+                checkpoint = torch.load(checkpoint_to_load, map_location=device)
+                if 'model_state_dict' in checkpoint:
+                    model.load_state_dict(checkpoint['model_state_dict'])
+                    model.eval()
+                    main_logger.info("Model state dictionary loaded successfully. Model set to eval mode.")
+                elif isinstance(checkpoint, nn.Module):
+                    model = checkpoint.to(device)
+                    model.eval()
+                    main_logger.info("Entire model object loaded successfully. Model set to eval mode.")
+                else:
+                    main_logger.warning("Checkpoint structure not recognized. Expected 'model_state_dict' or a full model. Proceeding with source domain pre-training.")
+                    train_source_model = True
+            except Exception as e:
+                main_logger.error(f"Failed to load checkpoint '{checkpoint_to_load}': {e}. Proceeding with source domain pre-training.")
+                train_source_model = True
+        else:
+            main_logger.warning(f"Pre-trained checkpoint path not found: '{checkpoint_to_load}'. Proceeding with source domain pre-training.")
+            train_source_model = True
+    else:
+        main_logger.info("No pre-trained checkpoint specified. Starting source domain pre-training phase.")
 
-    # 7. Test-Time Adaptation (TTA) and Evaluation
+    if train_source_model:
+        source_trainer = SourceTrainer(
+            model=model,
+            train_loader=source_train_loader,
+            val_loader=source_val_loader,
+            optimizer_config=config['training']['optimizer'],
+            config=config,
+            device=device,
+        )
+        # The source_trainer will save the best model and load it back into `model` internally
+        model = source_trainer.train() 
+        main_logger.info("Source domain pre-training complete. Best model loaded.")
+
+    # 6. Test-Time Adaptation (TTA) and Evaluation
     main_logger.info("Starting Test-Time Adaptation (TTA) and evaluation phase.")
     tta_trainer = TTATrainer(
         model=model,
