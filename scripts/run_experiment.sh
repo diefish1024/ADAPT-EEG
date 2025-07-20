@@ -4,7 +4,7 @@ set -e
 
 echo "Starting ADAPT-EEG Experiment..."
 
-CONFIG_PATH="configs/experiments_seed.yaml"
+CONFIG_PATH="configs/experiment_seed.yaml"
 
 if [ ! -f "$CONFIG_PATH" ]; then
     echo "Error: Configuratoin file not found at $CONFIG_PATH"
