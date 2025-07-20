@@ -29,7 +29,7 @@ def get_tta_method(model: nn.Module, tta_config: Dict, device: torch.device) -> 
     adapt_steps = tta_config.get('adapt_steps', 1)
     loss_weights = tta_config.get('loss_weights', {}) # Weights for specific TTA-related losses
 
-    if method_name == 'Tent':
+    if method_name == 'tent':
         # Tent constructor might need model, optimizer_config, adapt_steps
         return Tent(model=model, optimizer_config=optimizer_config, adapt_steps=adapt_steps)
     else:
