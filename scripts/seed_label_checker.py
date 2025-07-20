@@ -3,7 +3,7 @@
 import scipy.io as sio
 import os
 
-seed_base_dir = "../data/raw/seed/Preprocessed_EEG"
+seed_base_dir = "../data/seed/Preprocessed_EEG"
 label_file_path = os.path.join(seed_base_dir, 'label.mat')
 
 try:

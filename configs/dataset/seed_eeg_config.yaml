@@ -1,7 +1,7 @@
 # configs/dataset/seed_eeg_config.yaml
 
 name: SEED
-data_dir: "data/raw/seed"
+data_dir: "data/seed"
 sfreq: 200.0
 
 preprocess:
@@ -12,7 +12,7 @@ preprocess:
     highcut: 45.0
     order: 5
 
-eeg_key_prefix_map_path: "data/processed/seed/seed_eeg_key_prefixes.json"
+eeg_key_prefix_map_path: "data/seed/seed_eeg_key_prefixes.json"
 
 feature_extraction:
   # enable: True
