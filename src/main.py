@@ -141,6 +141,7 @@ def main(config_path: str):
             train_source_model = True
     else:
         main_logger.info("No pre-trained checkpoint specified. Starting source domain pre-training phase.")
+        train_source_model = True
 
     if train_source_model:
         source_trainer = SourceTrainer(
