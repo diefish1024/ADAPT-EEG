@@ -12,9 +12,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # --- Path Configurations ---
 # Directory containing source .mat files
-SOURCE_MAT_DIR = "data/seed/Preprocessed_EEG"
+SOURCE_MAT_DIR = "/data/huangjiehang/seed/Preprocessed_EEG"
 # Directory to store target .h5 files (script will create if not exists)
-DEST_H5_DIR = "data/seed/seed_h5"
+DEST_H5_DIR = "/data/huangjiehang/seed/seed_h5"
 
 def get_eeg_prefix(mat_data: dict) -> str:
     """

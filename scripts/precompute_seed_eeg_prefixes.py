@@ -74,11 +74,11 @@ def precompute_seed_eeg_prefixes(eeg_data_folder: str, output_filepath: str):
 
 if __name__ == "__main__":
     # Define the directory where your SEED Preprocessed_EEG .mat files are located
-    SEED_EEG_DATA_DIR = "data/seed/Preprocessed_EEG"
+    SEED_EEG_DATA_DIR = "/data/huangjiehang/seed/Preprocessed_EEG"
     
     # Define the path where the precomputed prefixes JSON file will be saved
     # It's good practice to save processed metadata in a 'processed' data folder.
-    OUTPUT_PROCESSING_DIR = "data/seed/"
+    OUTPUT_PROCESSING_DIR = "/data/huangjiehang/seed/"
     OUTPUT_PREFIX_FILE = os.path.join(OUTPUT_PROCESSING_DIR, "seed_eeg_key_prefixes.json")
 
     precompute_seed_eeg_prefixes(SEED_EEG_DATA_DIR, OUTPUT_PREFIX_FILE)

@@ -1,7 +1,7 @@
 # configs/dataset/seed_eeg_config.yaml
 
 name: SEED
-data_dir: "data/seed"
+data_dir: "/data/huangjiehang/seed"
 sfreq: 200.0
 
 preprocess:
