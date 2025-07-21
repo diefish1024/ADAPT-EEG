@@ -64,8 +64,7 @@ def main(config_path: str):
         session_ids=config['dataset'].get('source_train_sessions'),
         task_type=task_type,
         preprocess_config=preprocess_config,
-        sfreq=sfreq,
-        eeg_key_prefix_map_path=config['dataset'].get('eeg_key_prefix_map_path', None)
+        sfreq=sfreq
     )
     source_val_dataset = get_eeg_dataset(
         dataset_name=dataset_name,
@@ -74,8 +73,7 @@ def main(config_path: str):
         session_ids=config['dataset'].get('source_val_sessions'),
         task_type=task_type,
         preprocess_config=preprocess_config,
-        sfreq=sfreq,
-        eeg_key_prefix_map_path=config['dataset'].get('eeg_key_prefix_map_path', None)
+        sfreq=sfreq
     )
 
     source_train_loader = DataLoader(source_train_dataset, 
@@ -98,8 +96,7 @@ def main(config_path: str):
         session_ids=config['dataset'].get('target_test_sessions'),
         task_type=task_type,
         preprocess_config=preprocess_config,
-        sfreq=sfreq,
-        eeg_key_prefix_map_path=config['dataset'].get('eeg_key_prefix_map_path', None)
+        sfreq=sfreq
     )
     target_test_loader = DataLoader(target_test_dataset,
                                     batch_size=config['tta'].get('test_batch_size', 32),
@@ -148,8 +145,8 @@ def main(config_path: str):
             model=model,
             train_loader=source_train_loader,
             val_loader=source_val_loader,
-            optimizer_config=config['training']['optimizer'],
             config=config,
+            checkpoint_dir=exp_checkpoint_dir,
             device=device,
         )
         # The source_trainer will save the best model and load it back into `model` internally

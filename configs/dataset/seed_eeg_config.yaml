@@ -12,8 +12,6 @@ preprocess:
     highcut: 45.0
     order: 5
 
-eeg_key_prefix_map_path: "data/seed/seed_eeg_key_prefixes.json"
-
 feature_extraction:
   # enable: True
   # type: "de"

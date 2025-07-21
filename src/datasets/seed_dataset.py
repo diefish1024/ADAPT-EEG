@@ -38,8 +38,7 @@ class SEEDDataset(BaseDataset):
                  task_type: str = 'classification',
                  preprocess_config: Dict[str, Any] = None,
                  sfreq: float = 200.0, # Standard SEED sampling frequency
-                 transform: Optional[Callable] = None,
-                 eeg_key_prefix_map_path: Optional[str] = None):
+                 transform: Optional[Callable] = None):
                  
         super().__init__(transform=transform)
 
