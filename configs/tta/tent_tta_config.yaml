@@ -4,6 +4,9 @@ method: "Tent"
 
 adapt_steps: 1
 
-# Loss weights for TTA specific losses
-loss_weights:
-  entropy_loss_weight: 1.0
+adaptation_params:
+    steps_per_batch: 1
+
+optimizer:
+    type: Adam
+    lr: 0.001

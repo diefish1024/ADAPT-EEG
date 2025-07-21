@@ -150,7 +150,7 @@ def main(config_path: str):
             device=device,
         )
         # The source_trainer will save the best model and load it back into `model` internally
-        model = source_trainer.train() 
+        source_trainer.train()
         main_logger.info("Source domain pre-training complete. Best model loaded.")
 
     # 6. Test-Time Adaptation (TTA) and Evaluation
@@ -159,11 +159,12 @@ def main(config_path: str):
         model=model,
         test_loader=target_test_loader,
         config=config,
+        results_dir=results_base_dir,
         device=device
     )
     
     # For a single run, target_test_loader represents one target domain (e.g., Subject 15)
-    tta_results = tta_trainer.adapt_and_evaluate(target_test_loader, task_type=task_type)
+    tta_results = tta_trainer.adapt_and_evaluate()
     
     main_logger.info(f"Final TTA results for target subject(s) {config['dataset']['target_test_subjects']}: {tta_results}")
 

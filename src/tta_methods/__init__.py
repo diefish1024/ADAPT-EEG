@@ -25,13 +25,14 @@ def get_tta_method(model: nn.Module, tta_config: Dict, device: torch.device) -> 
     method_name = tta_config['method'].lower()
     
     # Common parameters for TTA methods from config
-    optimizer_config = tta_config.get('optimizer', {'type': 'adam', 'lr': 0.001})
+    optimizer_config = tta_config.get('optimizer', {'type': 'Adam', 'lr': 0.001})
+    adaptation_params_config = tta_config.get('adaptation_params', {'steps_per_batch': 1})
     adapt_steps = tta_config.get('adapt_steps', 1)
-    loss_weights = tta_config.get('loss_weights', {}) # Weights for specific TTA-related losses
 
     if method_name == 'tent':
         # Tent constructor might need model, optimizer_config, adapt_steps
-        return Tent(model=model, optimizer_config=optimizer_config, adapt_steps=adapt_steps)
+        return Tent(model=model, optimizer_config=optimizer_config,
+                    adaptation_params_config=adaptation_params_config, adapt_steps=adapt_steps)
     else:
         raise ValueError(f"Unsupported TTA method: {method_name}")
 

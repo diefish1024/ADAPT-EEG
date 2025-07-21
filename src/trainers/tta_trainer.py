@@ -8,6 +8,7 @@ from src.utils.metrics import get_metrics_calculator
 from src.utils.logger import get_logger
 import os
 from typing import Dict, Union, Optional
+from pathlib import Path
 
 from src.losses.classification_losses import CrossEntropyLoss
 from src.losses.regression_losses import NLLLoss 
@@ -21,7 +22,8 @@ class TTATrainer:
     Manages loading pre-trained models, running the TTA adaptation loop,
     and evaluating the model's performance on the target domain.
     """
-    def __init__(self, model: nn.Module, test_loader: DataLoader, config: Dict, device: torch.device): # MODIFIED SIGNATURE
+    def __init__(self, model: nn.Module, test_loader: DataLoader, config: Dict,
+                 results_dir: Path, device: torch.device):
         """
         Initializes the TTA Trainer.
 
@@ -37,6 +39,7 @@ class TTATrainer:
         self.config = config
         self.device = device
         self.task_type = config['task']['type']
+        self.result_dir = results_dir
         
         # Instantiate the TTA method internally using the config. This unifies with SourceTrainer's approach.
         self.tta_method = get_tta_method(
@@ -46,16 +49,11 @@ class TTATrainer:
         )
         
         # Initialize the appropriate metrics calculator based on task type
-        self.metrics_calculator = get_metrics_calculator(config['task']['type'])
+        self.metrics_calculator = get_metrics_calculator(self.task_type)
         
-        # Define and create the results directory
-        self.results_dir = os.path.join(config['logging']['results_dir'], config['experiment_name'])
-        os.makedirs(self.results_dir, exist_ok=True)
-        
-        logger.info(f"TTATrainer initialized for task: {config['task']['type']} using TTA method: {self.tta_method.__class__.__name__} on device: {device}")
+        logger.info(f"TTATrainer initialized for task: {self.task_type} using TTA method: {self.tta_method.__class__.__name__} on device: {device}")
 
     def evaluate(self, data_loader: Optional[DataLoader] = None, model_to_eval: Optional[nn.Module] = None) -> Dict[str, Union[float, Dict[str, float]]]:
-        # THIS METHOD REMAINS UNCHANGED, as it already correctly handles loss function instantiation internally.
         if data_loader is None:
             data_loader = self.test_loader
         if model_to_eval is None:
@@ -74,7 +72,7 @@ class TTATrainer:
         elif self.task_type == 'regression':
             eval_loss_fn = NLLLoss(reduction='sum') # Use NLL for consistency with regression head (if it outputs uncertainty)
         else:
-            raise ValueError(f"Unknown task type for evaluation loss: {self.config['task']['type']}")
+            raise ValueError(f"Unknown task type for evaluation loss: {self.task_type}")
 
         # Disable gradient calculations for evaluation to save memory and computation
         with torch.no_grad():
@@ -115,59 +113,41 @@ class TTATrainer:
                 logger.info(f"- {k}: {v}") # Log the dictionary as is
         return metrics
 
-    def run_tta(self, source_model_path: str) -> Dict[str, Union[float, Dict[str, float]]]:
-        # THIS METHOD REMAINS UNCHANGED IN LOGIC, but `self.tta_method` is now properly instantiated.
+    def adapt_and_evaluate(self) -> Dict[str, Union[float, Dict[str, float]]]:
         """
-        Executes the Test-Time Adaptation (TTA) process.
-
-        Args:
-            source_model_path (str): Path to the checkpoint of the source pre-trained model.
+        Executes the Test-Time Adaptation (TTA) process on the model
+        this trainer was initialized with.
 
         Returns:
             dict: Final evaluation metrics after the TTA process is complete.
-        
-        Raises:
-            FileNotFoundError: If the source model checkpoint is not found.
         """
         logger.info(f"Starting TTA process using method: {self.tta_method.__class__.__name__}")
         
-        # 1. Load pre-trained model weights
-        if os.path.exists(source_model_path):
-            logger.info(f"Loading source pre-trained model from: {source_model_path}")
-            # Ensure strict=True to load all matching layers correctly
-            self.model.load_state_dict(torch.load(source_model_path, map_location=self.device), strict=True) 
-            logger.info("Source model loaded successfully.")
-        else:
-            logger.error(f"Source model checkpoint not found at: {source_model_path}. Exiting.")
-            raise FileNotFoundError(f"Source model checkpoint not found: {source_model_path}")
-
-        # 2. Initial evaluation (before adaptation), to establish a baseline
+        # 1. The model is already loaded by main.py. No need to load it here.
+        #    We proceed directly to the initial evaluation.
         logger.info("--- Initial Evaluation (Before TTA) ---")
         initial_metrics = self.evaluate(data_loader=self.test_loader, model_to_eval=self.model)
         
-        # 3. Set model to train mode for TTA. The TTA method instance will internally manage
-        # which parameters are set to requires_grad=True and which remain frozen.
+        # 2. Set model to train mode for TTA. The TTA method instance will internally manage
+        #    which parameters are trainable.
         self.model.train() 
 
         logger.info(f"Performing TTA adaptation on {len(self.test_loader)} target domain batches.")
-        # 4. Perform adaptation on each batch of the target domain data loader
-        # TTA is typically an online process, adapting model parameters iteratively.
+        # 3. Perform adaptation on each batch of the target domain data.
         for batch_idx, (features, labels) in enumerate(tqdm(self.test_loader, desc="Adapting on Target Domain Batches")):
-            # Note: `labels` are provided to `adapt` for consistency, but
-            # most unsupervised TTA methods might ignore them.
-            self.tta_method.adapt((features, labels)) # This method modifies self.model parameters in-place
+            # The `adapt` method modifies self.model parameters in-place.
+            self.tta_method.adapt((features, labels))
             
-        # 5. Final evaluation on the entire target domain after all batches have been used for adaptation
+        # 4. Final evaluation after all batches have been used for adaptation.
         logger.info("--- Final Evaluation (After TTA on all batches) ---")
-        # Ensure the model is in evaluation mode for final performance assessment
-        self.model.eval() 
+        self.model.eval() # Ensure model is in eval mode for final assessment
         final_metrics = self.evaluate(data_loader=self.test_loader, model_to_eval=self.model)
 
-        # Log summary of results
+        # 5. Log summary of results.
         logger.info(
             f"TTA run completed. "
-            f"Initial Metrics (Loss {initial_metrics['loss']:.4f}, Primary: {initial_metrics.get('accuracy', initial_metrics.get('r2')):.4f}) "
-            f"-> Final Metrics (Loss {final_metrics['loss']:.4f}, Primary: {final_metrics.get('accuracy', final_metrics.get('r2')):.4f})"
+            f"Initial Accuracy: {initial_metrics.get('accuracy', 'N/A'):.4f} "
+            f"-> Final Accuracy: {final_metrics.get('accuracy', 'N/A'):.4f}"
         )
         return final_metrics
 

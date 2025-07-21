@@ -218,9 +218,9 @@ class SourceTrainer:
             logger.info(f"Epoch {epoch+1} Validation Loss: {val_loss:.4f}")
             for k, v in val_metrics.items():
                 if isinstance(v, (int, float)):
-                    logger.info(f"- Val {k}: {v:.4f}")
+                    logger.info(f"Val {k}: {v:.4f}")
                 elif isinstance(v, dict):
-                    logger.info(f"- Val {k}: {v}")
+                    logger.info(f"Val {k}: {v}")
 
             # Check for early stopping
             monitor_value = val_metrics[self.early_stopping.monitor]
