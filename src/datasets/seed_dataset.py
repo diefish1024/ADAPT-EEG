@@ -32,7 +32,7 @@ class SEEDDataset(BaseDataset):
     """
     
     def __init__(self,
-                 data_dir: str, # This should be "data/seed/"
+                 data_dir: str,
                  subject_ids: List[int],
                  session_ids: List[int], # Will map to the 3 sessions per subject
                  task_type: str = 'classification',
@@ -42,7 +42,7 @@ class SEEDDataset(BaseDataset):
                  
         super().__init__(transform=transform)
 
-        self.h5_data_folder = os.path.abspath(os.path.join(data_dir, 'seed_h5')) 
+        self.h5_data_folder = os.path.abspath(os.path.join(data_dir, 'seed_features_filtered')) 
         self.original_mat_folder = os.path.abspath(os.path.join(data_dir, 'Preprocessed_EEG'))
 
         self.subject_ids = subject_ids
@@ -174,8 +174,7 @@ class SEEDDataset(BaseDataset):
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Efficiently loads and pre-processes a single EEG trial.
-        Now, it reads a small .h5 file for each item, which is very fast.
+        Read pre-processed features from disk, which is very fast.
  
         Args:
             idx (int): Index of the sample to retrieve.
@@ -184,31 +183,19 @@ class SEEDDataset(BaseDataset):
             Tuple[torch.Tensor, torch.Tensor]: A tuple containing the processed
                                                EEG features and its corresponding mapped label.
         """
-        h5_file_path, mapped_label = self.data_samples[idx]
+        feature_file_path, mapped_label = self.data_samples[idx]
  
         try:
             # Read EEG data using h5py
-            with h5py.File(h5_file_path, 'r') as f:
-                # Load the 'eeg' dataset and ensure float32 dtype
-                eeg_data = f['eeg'][:].astype(np.float32)
+            with h5py.File(feature_file_path, 'r') as f:
+                processed_features = f['features'][:] 
  
-            # Validate data dimensions: Expected (channels, time_points)
-            if eeg_data.ndim != 2 or eeg_data.shape[0] != 62:
-                logger.warning(f"Unexpected EEG data shape in {h5_file_path}: {eeg_data.shape}. "
-                               f"Expected (62 channels, time_points). Data may be malformed or corrupted.")
-            
-            # Apply the pre-processing pipeline defined by preprocess_config
-            # This utility function `apply_preprocessing_pipeline` is assumed to handle
-            # operations like bandpass filtering, downsampling, feature extraction (e.g., DE) etc.
-            processed_features = apply_preprocessing_pipeline(eeg_data, self.preprocess_config, self.sfreq)
-            
-            # Convert NumPy arrays to PyTorch tensors
-            # .copy() is used to ensure the array is contiguous in memory before converting to tensor
-            features_tensor = torch.tensor(processed_features.copy(), dtype=torch.float32)
+            # Transform to Tensor
+            features_tensor = torch.tensor(processed_features, dtype=torch.float32)
             label_tensor = torch.tensor(mapped_label, dtype=torch.long)
  
             return features_tensor, label_tensor
  
         except Exception as e:
-            logger.error(f"Error loading or processing sample {idx} from {h5_file_path}: {e}")
-            raise # Re-raise the exception to propagate the error
+            logger.error(f"Error loading or processing sample {idx} from {feature_file_path}: {e}")
+            raise
