@@ -3,10 +3,12 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+import datetime
 from tqdm import tqdm
 import os
 import copy
 from typing import Dict, Union, Optional
+from pathlib import Path
 
 from src.utils.logger import get_logger
 from src.utils.metrics import get_metrics_calculator
@@ -25,7 +27,7 @@ class SourceTrainer:
     checkpointing, and early stopping.
     """
     def __init__(self, model: nn.Module, train_loader: DataLoader, val_loader: DataLoader,
-                 optimizer_config: Dict, config: Dict, device: torch.device):
+                 config: Dict, checkpoint_dir: Path, device: torch.device):
         """
         Initializes the Source Trainer.
 
@@ -45,7 +47,7 @@ class SourceTrainer:
         
         self.task_type = config['task']['type']
         self.loss_fn = self._get_loss_fn()
-        self.optimizer = self._get_optimizer(self.model.parameters(), optimizer_config)
+        self.optimizer = self._get_optimizer(self.model.parameters(), config['training']['optimizer'])
         self.metrics_calculator = get_metrics_calculator(self.task_type)
         
         self.epochs = config['training']['epochs']
@@ -63,9 +65,7 @@ class SourceTrainer:
         )
         
         # Setup directories for saving results and checkpoints
-        self.results_dir = os.path.join(config['paths']['results_dir'], config['experiment']['name'])
-        self.checkpoint_dir = os.path.join(self.results_dir, 'checkpoints')
-        os.makedirs(self.checkpoint_dir, exist_ok=True)
+        self.checkpoint_dir = checkpoint_dir
         
         self.best_val_metric = -float('inf') if early_stopping_mode == 'max' else float('inf')
         self.best_epoch = 0
@@ -130,6 +130,7 @@ class SourceTrainer:
                     loss = self.loss_fn(labels, mu_pred, log_sigma_sq_pred)
                     all_model_outputs.append(mu_pred) # Append only mu_pred for standard regression metrics
                 
+                all_targets.append(labels)
                 total_loss += loss.item() * features.size(0) # Accumulate sum of losses
         
         # Concatenate all collected tensors
