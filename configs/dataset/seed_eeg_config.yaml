@@ -5,24 +5,22 @@ data_dir: "/data/huangjiehang/seed"
 sfreq: 200.0
 
 preprocess:
-  # Bandpass filter setting
-  filter:
-    enable: True
-    lowcut: 4.0
-    highcut: 45.0
-    order: 5
-
-feature_extraction:
-  # enable: True
-  # type: "de"
-  # bands:
-  #   delta: [1.0, 4.0]
-  #   theta: [4.0, 8.0]
-  #   alpha: [8.0, 13.0]
-  #   bera: [13.0, 30.0]
-  #   gamma: [30.0, 45.0]
-  enable: False
-  type: "raw"
-  bands: {}
+  sfreq: 200.0 # Original sampling frequency
+  preprocess:
+    filter:
+      enable: true
+      lowcut: 1.0
+      highcut: 45.0
+      order: 5
+    downsample:
+      enable: true
+      target_sfreq: 100.0 # Target sampling frequency
+    segment:
+      enable: true
+      window_sec: 1.0 # 1-second window
+      step_sec: 0.5   # 0.5-second step (50% overlap)
+    feature_extraction:
+      enable: true
+      type: 'raw'
 
 normalize: True

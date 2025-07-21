@@ -32,17 +32,24 @@ def main():
             with h5py.File(file_path, 'r') as f:
                 raw_eeg_data = f['eeg'][:]
 
-            processed_features = apply_preprocessing_pipeline(
+            processed_segments = apply_preprocessing_pipeline(
                 raw_eeg_data, 
                 preprocess_config, 
                 sfreq
             )
 
-            filename = os.path.basename(file_path)
-            dest_path = os.path.join(DEST_FEATURES_DIR, filename)
-            with h5py.File(dest_path, 'w') as f_out:
-                # Store the final feature array into a dataset named 'features'
-                f_out.create_dataset('features', data=processed_features)
+            # Get the base filename without extension
+            base_filename = os.path.basename(file_path).replace('.h5', '')
+
+            # Loop through the list and save each segment as a separate file
+            for i, segment_features in enumerate(processed_segments):
+                # Create a unique name for each segment
+                segment_filename = f"{base_filename}_seg_{i}.h5"
+                dest_path = os.path.join(DEST_FEATURES_DIR, segment_filename)
+
+                with h5py.File(dest_path, 'w') as f_out:
+                    # Store the final feature array into a dataset named 'features'
+                    f_out.create_dataset('features', data=segment_features)
 
         except Exception as e:
             print(f"Error processing file {file_path}: {e}")
