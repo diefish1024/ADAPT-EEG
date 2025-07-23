@@ -2,25 +2,23 @@
 
 name: SEED
 data_dir: "/data/huangjiehang/seed"
+
 sfreq: 200.0
 
 preprocess:
-  sfreq: 200.0 # Original sampling frequency
-  preprocess:
-    filter:
-      enable: true
-      lowcut: 1.0
-      highcut: 45.0
-      order: 5
-    downsample:
-      enable: true
-      target_sfreq: 100.0 # Target sampling frequency
-    segment:
-      enable: true
-      window_sec: 1.0 # 1-second window
-      step_sec: 0.5   # 0.5-second step (50% overlap)
-    feature_extraction:
-      enable: true
-      type: 'raw'
-
-normalize: True
+  filter:
+    enable: true
+    lowcut: 1.0
+    highcut: 45.0
+    order: 5
+  downsample:
+    enable: true
+    target_sfreq: 100.0
+  segment:
+    enable: true
+    window_sec: 1.0
+    step_sec: 0.5
+  feature_extraction:
+    enable: true
+    type: 'raw'
+  normalize: true
