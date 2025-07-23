@@ -98,75 +98,82 @@ class SEEDDataset(BaseDataset):
     def _collect_data_samples(self) -> List[Tuple[str, int]]:
         """
         Collects data samples from the .h5 file directory based on subject and session.
-        This method is simplified as it directly handles individual trial files.
+        This method handles segmented filenames (e.g., ..._seg_0.h5).
         """
         all_samples: List[Tuple[str, int]] = []
         if not os.path.isdir(self.h5_data_folder):
             raise NotADirectoryError(
                 f"H5 data directory not found at '{self.h5_data_folder}'. "
-                f"Please ensure you have run the data conversion script "
-                f"(e.g., `scripts/convert_seed_to_h5.py`) first."
+                f"Please ensure you have run the feature precomputation script."
             )
             
-        # 1. Group and sort all session files by subject
         parsed_files = []
         all_h5_files = glob.glob(os.path.join(self.h5_data_folder, '*.h5'))
         
-        # Temporarily parse filenames to extract subject and date for sorting
+        # The regex can match both '..._trial_1.h5' and '..._trial_1_seg_0.h5'
+        file_pattern = re.compile(r'(\d+)_(\d{8})_trial_(\d+)(?:_seg_(\d+))?\.h5')
+
         for h5_path in all_h5_files:
             filename = os.path.basename(h5_path)
-            match = re.match(r'(\d+)_(\d{8})_trial_(\d+)\.h5', filename)
+            match = file_pattern.match(filename)
+            
             if match:
-                sub_id, session_date, trial_num = map(int, match.groups())
+                # The segment number will be None if the filename doesn't have a _seg_ part
+                sub_id, session_date, trial_num, seg_num = match.groups()
+                
+                # Convert captured strings to integers
+                sub_id, session_date, trial_num = map(int, (sub_id, session_date, trial_num))
+                
                 # Only consider files for subjects specified in self.subject_ids
                 if sub_id in self.subject_ids:
+                    # seg_num is not strictly needed here but good to have
                     parsed_files.append({'path': h5_path, 'sub': sub_id, 'date': session_date, 'trial': trial_num})
- 
-        # Group by subject to find all session dates for each subject
+
+        # subject_id, session_date, and trial_num to assign labels.
         subject_date_map: Dict[int, List[int]] = {}
         for p_file in parsed_files:
             sub = p_file['sub']
             if sub not in subject_date_map:
                 subject_date_map[sub] = []
-            if p_file['date'] not in subject_date_map[sub]: # Add unique dates
+            if p_file['date'] not in subject_date_map[sub]:
                 subject_date_map[sub].append(p_file['date'])
- 
-        # 2. Iterate through filtered subjects and sessions
+
         for sub_id in sorted(self.subject_ids):
             if sub_id not in subject_date_map:
-                # This subject might not have any H5 files in the directory
                 continue
- 
-            # Get all session dates for this subject and sort them to determine
-            # the logical session index (1, 2, 3) (SEED has 3 sessions per subject)
+
             sorted_dates = sorted(subject_date_map[sub_id])
             
-            for sess_idx_logical, session_date in enumerate(sorted_dates, 1): # Enumerate starting from 1
+            for sess_idx_logical, session_date in enumerate(sorted_dates, 1):
                 if sess_idx_logical in self.session_ids:
-                    # Find all trial files belonging to this subject and session date
                     session_trial_files = [
                         p for p in parsed_files 
                         if p['sub'] == sub_id and p['date'] == session_date
                     ]
-                    # Sort trials by their number to ensure consistent order (1-15)
-                    session_trial_files.sort(key=lambda x: x['trial'])
- 
-                    for trial_file_info in session_trial_files:
-                        # Trial numbers are 1-indexed (1 to 15), convert to 0-indexed for array access
-                        trial_idx_in_session = trial_file_info['trial'] - 1 
+                    
+                    # Group files by trial number to assign labels correctly
+                    # This handles multiple segments belonging to the same trial
+                    trials_in_session = {}
+                    for f_info in session_trial_files:
+                        if f_info['trial'] not in trials_in_session:
+                            trials_in_session[f_info['trial']] = []
+                        trials_in_session[f_info['trial']].append(f_info['path'])
                         
-                        # Fetch the original label from the global sequence based on trial index
+                    for trial_num, file_paths in sorted(trials_in_session.items()):
+                        trial_idx_in_session = trial_num - 1
+                        
                         original_label = self.global_trial_labels[trial_idx_in_session]
-                        # Map the original label to the 0-indexed target label
                         mapped_label = self.label_mapping[original_label]
                         
-                        all_samples.append((trial_file_info['path'], mapped_label))
- 
+                        # Add every segment file with the same correct label
+                        for path in file_paths:
+                            all_samples.append((path, mapped_label))
+
         if not all_samples:
             logger.warning(f"No H5 data samples found for specified subjects {self.subject_ids} "
                            f"and sessions {self.session_ids} in '{self.h5_data_folder}'. "
-                           f"This might indicate incorrect subject/session IDs or missing data.")
- 
+                           f"This might indicate incorrect subject/session IDs or a regex mismatch.")
+
         return all_samples
 
     def __len__(self) -> int:
