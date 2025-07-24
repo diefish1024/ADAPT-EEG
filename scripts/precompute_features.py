@@ -6,6 +6,7 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 import sys
+import shutil
 
 sys.path.append(os.getcwd()) 
 from src.utils.eeg_preprocessing import apply_preprocessing_pipeline 
@@ -17,7 +18,13 @@ CONFIG_PATH = "configs/experiment_seed.yaml"
 
 def main():
     print("Starting computing features...")
-    os.makedirs(DEST_FEATURES_DIR, exist_ok=True)
+    if os.path.exists(DEST_FEATURES_DIR):
+        print(f"Destination directory '{DEST_FEATURES_DIR}' already exists. Clearing it...")
+        shutil.rmtree(DEST_FEATURES_DIR)
+        print("Directory cleared.")
+
+    os.makedirs(DEST_FEATURES_DIR)
+    print(f"Created clean destination directory: '{DEST_FEATURES_DIR}'")
 
     config_parser = ConfigParser(CONFIG_PATH)
     config = config_parser.config
