@@ -9,6 +9,7 @@ import re
 import json
 import h5py
 from typing import List, Dict, Tuple, Any, Callable, Optional
+from collections import defaultdict
 
 from src.datasets.base_dataset import BaseDataset
 from src.utils.eeg_preprocessing import apply_preprocessing_pipeline
@@ -50,6 +51,7 @@ class SEEDDataset(BaseDataset):
         self.sfreq = sfreq
         self.task_type = task_type
         self.preprocess_config = preprocess_config
+        self.sequence_length = self.preprocess_config.get('sequence_length', 1)
 
         if self.task_type != 'classification':
             raise ValueError("SEED Dataset is primarily for classification tasks.")
@@ -97,112 +99,87 @@ class SEEDDataset(BaseDataset):
 
     def _collect_data_samples(self) -> List[Tuple[str, int]]:
         """
-        Collects data samples from the .h5 file directory based on subject and session.
-        This method handles segmented filenames (e.g., ..._seg_0.h5).
+        Collects segment file paths and groups them into sequences.
+        Each sample will be a list of paths representing a sequence.
         """
-        all_samples: List[Tuple[str, int]] = []
         if not os.path.isdir(self.h5_data_folder):
-            raise NotADirectoryError(
-                f"H5 data directory not found at '{self.h5_data_folder}'. "
-                f"Please ensure you have run the feature precomputation script."
-            )
+            raise NotADirectoryError(f"H5 data directory not found at '{self.h5_data_folder}'.")
+
+        trials_data = defaultdict(list)
+        all_h5_files = glob.glob(os.path.join(self.h5_data_folder, '*.h5'))
             
         parsed_files = []
         all_h5_files = glob.glob(os.path.join(self.h5_data_folder, '*.h5'))
         
         # The regex can match both '..._trial_1.h5' and '..._trial_1_seg_0.h5'
-        file_pattern = re.compile(r'(\d+)_(\d{8})_trial_(\d+)(?:_seg_(\d+))?\.h5')
+        file_pattern = re.compile(r'(\d+)_(\d{8})_trial_(\d+)_seg_(\d+)\.h5')
 
         for h5_path in all_h5_files:
             filename = os.path.basename(h5_path)
             match = file_pattern.match(filename)
             
             if match:
-                # The segment number will be None if the filename doesn't have a _seg_ part
-                sub_id, session_date, trial_num, seg_num = match.groups()
+                sub_id, session_date, trial_num, seg_num = map(int, match.groups())
                 
-                # Convert captured strings to integers
-                sub_id, session_date, trial_num = map(int, (sub_id, session_date, trial_num))
-                
-                # Only consider files for subjects specified in self.subject_ids
                 if sub_id in self.subject_ids:
-                    # seg_num is not strictly needed here but good to have
-                    parsed_files.append({'path': h5_path, 'sub': sub_id, 'date': session_date, 'trial': trial_num})
+                    trial_key = (sub_id, session_date, trial_num)
+                    trials_data[trial_key].append({'path': h5_path, 'seg_num': seg_num})
+
+        final_samples = []
 
         # subject_id, session_date, and trial_num to assign labels.
-        subject_date_map: Dict[int, List[int]] = {}
-        for p_file in parsed_files:
-            sub = p_file['sub']
-            if sub not in subject_date_map:
-                subject_date_map[sub] = []
-            if p_file['date'] not in subject_date_map[sub]:
-                subject_date_map[sub].append(p_file['date'])
+        subject_date_map = defaultdict(list)
+        for sub_id, session_date, _ in trials_data.keys():
+            if session_date not in subject_date_map[sub_id]:
+                subject_date_map[sub_id].append(session_date)
 
-        for sub_id in sorted(self.subject_ids):
-            if sub_id not in subject_date_map:
+        for (sub_id, session_date, trial_num), segments in trials_data.items():
+            if sub_id not in subject_date_map or session_date not in subject_date_map[sub_id]:
+                continue
+            sess_idx_logical = subject_date_map[sub_id].index(session_date) + 1
+
+            if sess_idx_logical not in self.session_ids:
                 continue
 
-            sorted_dates = sorted(subject_date_map[sub_id])
-            
-            for sess_idx_logical, session_date in enumerate(sorted_dates, 1):
-                if sess_idx_logical in self.session_ids:
-                    session_trial_files = [
-                        p for p in parsed_files 
-                        if p['sub'] == sub_id and p['date'] == session_date
-                    ]
-                    
-                    # Group files by trial number to assign labels correctly
-                    # This handles multiple segments belonging to the same trial
-                    trials_in_session = {}
-                    for f_info in session_trial_files:
-                        if f_info['trial'] not in trials_in_session:
-                            trials_in_session[f_info['trial']] = []
-                        trials_in_session[f_info['trial']].append(f_info['path'])
-                        
-                    for trial_num, file_paths in sorted(trials_in_session.items()):
-                        trial_idx_in_session = trial_num - 1
-                        
-                        original_label = self.global_trial_labels[trial_idx_in_session]
-                        mapped_label = self.label_mapping[original_label]
-                        
-                        # Add every segment file with the same correct label
-                        for path in file_paths:
-                            all_samples.append((path, mapped_label))
+            segments.sort(key=lambda x: x['seg_num'])
+            sorted_paths = [s['path'] for s in segments]
 
-        if not all_samples:
-            logger.warning(f"No H5 data samples found for specified subjects {self.subject_ids} "
-                           f"and sessions {self.session_ids} in '{self.h5_data_folder}'. "
-                           f"This might indicate incorrect subject/session IDs or a regex mismatch.")
+            trial_idx_in_session = trial_num - 1
+            original_label = self.global_trial_labels[trial_idx_in_session]
+            mapped_label = self.label_mapping[original_label]
 
-        return all_samples
+            num_segments = len(sorted_paths)
+            for i in range(0, num_segments - self.sequence_length + 1, self.sequence_length):
+                sequence_paths = sorted_paths[i : i + self.sequence_length]
+                final_samples.append((sequence_paths, mapped_label))
+        
+        if not final_samples:
+            logger.warning(f"No sequences created for subjects {self.subject_ids}. Check config and data.")
+
+        return final_samples
 
     def __len__(self) -> int:
         return len(self.data_samples)
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Read pre-processed features from disk, which is very fast.
- 
-        Args:
-            idx (int): Index of the sample to retrieve.
- 
-        Returns:
-            Tuple[torch.Tensor, torch.Tensor]: A tuple containing the processed
-                                               EEG features and its corresponding mapped label.
+        Loads a sequence of segments, splices them together, and returns a single tensor.
         """
-        feature_file_path, mapped_label = self.data_samples[idx]
- 
+        sequence_paths, mapped_label = self.data_samples[idx]
+        
+        segment_arrays = []
         try:
-            # Read EEG data using h5py
-            with h5py.File(feature_file_path, 'r') as f:
-                processed_features = f['features'][:] 
- 
-            # Transform to Tensor
-            features_tensor = torch.tensor(processed_features, dtype=torch.float32)
+            for path in sequence_paths:
+                with h5py.File(path, 'r') as f:
+                    segment_arrays.append(f['features'][:])
+            
+            spliced_features = np.concatenate(segment_arrays, axis=1)
+            
+            features_tensor = torch.tensor(spliced_features, dtype=torch.float32)
             label_tensor = torch.tensor(mapped_label, dtype=torch.long)
- 
+
             return features_tensor, label_tensor
- 
+
         except Exception as e:
-            logger.error(f"Error loading or processing sample {idx} from {feature_file_path}: {e}")
+            logger.error(f"Error loading or splicing sequence at index {idx} from {sequence_paths}: {e}")
             raise
