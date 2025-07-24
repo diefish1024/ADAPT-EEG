@@ -6,7 +6,7 @@ import datetime
 from typing import Optional
 
 # Define the name for the root application logger.
-_APP_ROOT_LOGGER_NAME = 'ADAPT_EEG_Application'
+_APP_ROOT_LOGGER_NAME = 'ADAPT_EEG'
 
 def configure_app_logger(log_dir: str = 'results/logs', 
                          log_file_name: Optional[str] = None, 
@@ -85,7 +85,7 @@ def get_logger(name: str) -> logging.Logger:
         name (str): The name of the logger to retrieve. For module-specific
                     logging, it's highly recommended to pass `__name__` here
                     (e.g., `logger = get_logger(__name__)`). This creates a
-                    hierarchical logger name (e.g., 'ADAPT_EEG_Application.src.module_name').
+                    hierarchical logger name (e.g., 'ADAPT_EEG.src.module_name').
 
     Returns:
         logging.Logger: The specific logger instance for the given name.
