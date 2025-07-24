@@ -95,10 +95,11 @@ class SourceTrainer:
         """
         opt_type = optimizer_config['type'].lower()
         lr = optimizer_config['lr']
+        weight_decay = optimizer_config.get('weight_decay', 0)
         if opt_type == 'adam':
-            return torch.optim.Adam(params, lr=lr)
+            return torch.optim.Adam(params, lr=lr, weight_decay=weight_decay)
         elif opt_type == 'sgd':
-            return torch.optim.SGD(params, lr=lr, momentum=optimizer_config.get('momentum', 0))
+            return torch.optim.SGD(params, lr=lr, weight_decay=weight_decay, momentum=optimizer_config.get('momentum', 0))
         else:
             raise ValueError(f"Unsupported optimizer type: {opt_type}")
 
