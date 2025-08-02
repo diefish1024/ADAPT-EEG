@@ -1,10 +1,16 @@
 # configs/model/eeg_model_config.yaml
 
 feature_extractor:
+  name: "emt_cls"
   embedding_dim: 256
-  name: "eeg_resnet18"
   in_channels: 62
-  mlp_hidden_dims: [256, 128]
+  
+  emt_params:
+      hidden_graph: 32
+      layers_transformer: 2
+      num_head: 8
+      dim_head: 16
+      dropout: 0.25
 
 model_head:
   type: "classification"
