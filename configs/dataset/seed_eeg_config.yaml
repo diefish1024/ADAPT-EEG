@@ -24,4 +24,3 @@ preprocess:
       window_sec: 1.0
       step_sec: 1.0
   normalize: true
-  sequence_length: 1
