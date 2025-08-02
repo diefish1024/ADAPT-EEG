@@ -1,31 +1,27 @@
-# configs/dataset/seed_eeg_config.yaml
-
 name: SEED
 data_dir: "/data/huangjiehang/seed"
-
 sfreq: 200.0
 
 preprocess:
-  filter:
-    enable: true
-    lowcut: 0.3
-    highcut: 50
-    order: 5
   downsample:
     enable: true
-    target_sfreq: 100.0
+    target_sfreq: 128.0
   segment:
     enable: true
-    window_sec: 20
-    step_sec: 4
+    window_sec: 4.0
+    step_sec: 4.0
   feature_extraction:
     enable: true
-    type: 'de' # raw or de
+    type: 'de_emt'
     bands:
       delta: [1, 4]
       theta: [4, 8]
       alpha: [8, 14]
       beta: [14, 31]
       gamma: [31, 45]
+    sub_segment:
+      enable: true
+      window_sec: 1.0
+      step_sec: 1.0
   normalize: true
   sequence_length: 1

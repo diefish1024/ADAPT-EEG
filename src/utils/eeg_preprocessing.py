@@ -3,79 +3,66 @@
 import numpy as np
 import scipy.signal
 import logging
-from typing import List
+from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
 def butter_bandpass_filter(data: np.ndarray, lowcut: float, highcut: float, fs: float, order: int = 5) -> np.ndarray:
-    """
-    Apply a Butterworth bandpass filter to EEG data.
-    Args:
-        data (np.ndarray): EEG data, expected shape (channels, time_points).
-        lowcut (float): Lower cutoff frequency.
-        highcut (float): Higher cutoff frequency.
-        fs (float): Sampling frequency.
-        order (int): Order of the filter.
-    Returns:
-        np.ndarray: Filtered EEG data.
-    """
+    """Applies a Butterworth bandpass filter."""
     nyquist = 0.5 * fs
     low = lowcut / nyquist
     high = highcut / nyquist
     b, a = scipy.signal.butter(order, [low, high], btype='band')
-    y = scipy.signal.filtfilt(b, a, data, axis=-1) # Apply along the time axis
+    y = scipy.signal.filtfilt(b, a, data, axis=-1)
     return y
 
-def calculate_differential_entropy(eeg_data_chunk: np.ndarray) -> np.ndarray:
+def cheby2_bandpass_filter(data: np.ndarray, band_cut: List[float], fs: float, filt_allowance: List[float] = [0.2, 5], axis: int = -1) -> np.ndarray:
     """
-    Calculate differential entropy (DE) as an EEG feature.
-    DE is defined as 0.5 * log(2 * pi * e * sigma^2), where sigma^2 is variance.
-    Assuming the data follows a Gaussian distribution for simplicity.
+    Applies a Chebyshev Type II bandpass filter. Adapted from EmT's methodology.
+    """
+    a_stop = 30  # stopband attenuation
+    a_pass = 3   # passband attenuation
+    n_freq = fs / 2  # Nyquist frequency
+    f_pass = (np.array(band_cut) / n_freq).tolist()
+    f_stop = [(band_cut[0] - filt_allowance[0]) / n_freq, (band_cut[1] + filt_allowance[1]) / n_freq]
     
-    Args:
-        eeg_data_chunk (np.ndarray): EEG data for a specific channel and time segment.
-                                      Expected shape (channels, time_points) for a band.
-    Returns:
-        np.ndarray: Differential entropy value(s) for each channel in the chunk. Shape (channels,)
-    """
-    if eeg_data_chunk.ndim == 1: # if a specific channel is passed as 1D
-        eeg_data_chunk = eeg_data_chunk[np.newaxis, :] # Make it (1, time_points)
-    elif eeg_data_chunk.ndim == 0: # single value
-        return np.array([0.0]) # Handle scalar case if it occurs
+    # Ensure stop frequencies are within valid range
+    f_stop[0] = max(f_stop[0], 0.01)
+    f_stop[1] = min(f_stop[1], 0.99)
 
-    variance = np.var(eeg_data_chunk, axis=-1) # Variance across time points for each channel
-    # Avoid log of zero or negative variance for numerical stability
-    variance[variance <= 1e-6] = 1e-6 
+    n, ws = scipy.signal.cheb2ord(f_pass, f_stop, a_pass, a_stop)
+    sos = scipy.signal.cheby2(n, a_stop, ws, 'bandpass', output='sos')
+    data_out = scipy.signal.sosfilt(sos, data, axis=axis)
+    return data_out
+
+def calculate_differential_entropy(eeg_data_chunk: np.ndarray) -> np.ndarray:
+    """Calculates differential entropy (DE)."""
+    if eeg_data_chunk.ndim == 1:
+        eeg_data_chunk = eeg_data_chunk[np.newaxis, :]
     
+    variance = np.var(eeg_data_chunk, axis=-1)
+    variance[variance <= 1e-6] = 1e-6 
     de = 0.5 * np.log(2 * np.pi * np.e * variance)
     return de
 
 def minmax_normalize(data: np.ndarray) -> np.ndarray:
-    """
-    Apply min-max normalization.
-    """
+    """Applies min-max normalization."""
     min_val = np.min(data)
     max_val = np.max(data)
     if max_val == min_val:
-        return np.zeros_like(data) # Handle case where all values are same
-    normalized_data = (data - min_val) / (max_val - min_val)
-    return normalized_data
+        return np.zeros_like(data)
+    return (data - min_val) / (max_val - min_val)
 
 def downsample_data(data: np.ndarray, original_sfreq: float, target_sfreq: float) -> np.ndarray:
-    """
-    Downsamples the data to a target sampling frequency.
-    """
+    """Downsamples data to a target sampling frequency."""
     if original_sfreq == target_sfreq:
         return data
     num_samples_original = data.shape[-1]
     num_samples_target = int(num_samples_original * target_sfreq / original_sfreq)
-    resampled_data = scipy.signal.resample(data, num_samples_target, axis=-1)
-    return resampled_data
+    return scipy.signal.resample(data, num_samples_target, axis=-1)
 
 def segment_data(data: np.ndarray, window_size_samples: int, step_samples: int) -> List[np.ndarray]:
-    """
-    Segments the data using a sliding window.
-    """
+    """Segments data using a sliding window."""
     segments = []
     total_len = data.shape[-1]
     for start in range(0, total_len - window_size_samples + 1, step_samples):
@@ -83,57 +70,88 @@ def segment_data(data: np.ndarray, window_size_samples: int, step_samples: int) 
         segments.append(data[:, start:end])
     return segments
 
-def apply_preprocessing_pipeline(eeg_data: np.ndarray, preprocess_config: dict, sfreq: float) -> List[np.ndarray]:
+def apply_preprocessing_pipeline(eeg_data: np.ndarray, preprocess_config: Dict[str, Any], sfreq: float) -> List[np.ndarray]:
     """
-    Applies the full preprocessing pipeline.
-    This function now processes one trial and returns a list of processed segments.
+    Applies the full preprocessing pipeline for one trial, returning a list of processed segments.
     """
     if eeg_data.ndim != 2:
         raise ValueError(f"Input EEG data must be 2D, but got shape {eeg_data.shape}")
 
-    # 1. Filtering (applied to the whole trial first)
+    # 1. Downsampling (Applied first to maintain consistency)
     current_data = eeg_data
-    if preprocess_config.get('filter', {}).get('enable', False):
-        lowcut = preprocess_config['filter']['lowcut']
-        highcut = preprocess_config['filter']['highcut']
-        order = preprocess_config['filter'].get('order', 5)
-        current_data = butter_bandpass_filter(current_data, lowcut, highcut, sfreq, order)
-        logger.debug(f"Applied bandpass filter ({lowcut}-{highcut} Hz).")
-
-    # 2. Downsampling (applied to the whole trial)
     current_sfreq = sfreq
     if preprocess_config.get('downsample', {}).get('enable', False):
         target_sfreq = preprocess_config['downsample']['target_sfreq']
         current_data = downsample_data(current_data, original_sfreq=sfreq, target_sfreq=target_sfreq)
-        current_sfreq = target_sfreq # Update sfreq for subsequent steps
+        current_sfreq = target_sfreq
         logger.debug(f"Downsampled data to {target_sfreq} Hz.")
 
-    # 3. Segmentation (applied to the whole trial)
+    # 2. Segmentation (Splits trial into larger segments)
     if preprocess_config.get('segment', {}).get('enable', False):
         window_sec = preprocess_config['segment']['window_sec']
         step_sec = preprocess_config['segment']['step_sec']
         window_samples = int(window_sec * current_sfreq)
         step_samples = int(step_sec * current_sfreq)
         segments = segment_data(current_data, window_samples, step_samples)
-        logger.debug(f"Segmented data into {len(segments)} windows.")
     else:
-        # If no segmentation, treat the whole trial as a single segment
         segments = [current_data]
 
-    # 4. Feature Extraction and Normalization (applied to each segment)
+    # 3. Feature Extraction (Applied to each segment)
     final_features_list = []
+    feature_config = preprocess_config.get('feature_extraction', {})
+    if not feature_config.get('enable', False):
+        return segments # Return raw, segmented data if no feature extraction
+
+    feature_type = feature_config.get('type', 'raw')
+    
     for segment in segments:
-        processed_segment = segment
-        if preprocess_config.get('feature_extraction', {}).get('enable', False):
-            # ... (feature extraction logic is the same, but now on a segment)
-            # This example only shows 'raw' and 'de' as before
-            feature_type = preprocess_config['feature_extraction']['type']
-            if feature_type == 'de':
-                 # DE feature extraction logic here
-                pass # Replace with your DE extraction for a segment
-            elif feature_type == 'raw':
-                processed_segment = segment # Keep the raw segment
+        if feature_type == 'de_emt':
+            # EmT-specific feature extraction
+            bands = feature_config.get('bands', {})
+            sub_segment_config = feature_config.get('sub_segment', {})
+            if not bands or not sub_segment_config:
+                raise ValueError("Config for 'de_emt' must include 'bands' and 'sub_segment' sections.")
+
+            sub_window_sec = sub_segment_config['window_sec']
+            sub_step_sec = sub_segment_config['step_sec']
+            sub_window_samples = int(sub_window_sec * current_sfreq)
+            sub_step_samples = int(sub_step_sec * current_sfreq)
+
+            # Segment the larger segment into sub-segments (e.g., 1-second windows)
+            sub_segments = segment_data(segment, sub_window_samples, sub_step_samples)
+            
+            all_bands_features = []
+            for band_name, band_range in bands.items():
+                # Filter the whole segment first for efficiency
+                filtered_segment = cheby2_bandpass_filter(segment, band_range, current_sfreq)
+                
+                band_de_features = []
+                # Now calculate DE on sub-segments of the filtered data
+                sub_segments_filtered = segment_data(filtered_segment, sub_window_samples, sub_step_samples)
+                for sub_seg in sub_segments_filtered:
+                    de = calculate_differential_entropy(sub_seg)
+                    band_de_features.append(de)
+                
+                # Shape: (num_sub_segments, channels)
+                all_bands_features.append(np.stack(band_de_features))
+
+            # Stack features: (num_bands, num_sub_segments, channels) -> (channels, num_sub_segments, num_bands)
+            processed_segment = np.stack(all_bands_features).transpose(2, 1, 0)
         
+        elif feature_type == 'de':
+            # Your original DE feature extraction
+            bands = feature_config.get('bands', {})
+            band_features = []
+            for band_name, band_range in bands.items():
+                filtered_data = butter_bandpass_filter(segment, band_range[0], band_range[1], current_sfreq)
+                de = calculate_differential_entropy(filtered_data)
+                band_features.append(de)
+            # Shape: (channels, num_bands)
+            processed_segment = np.stack(band_features, axis=-1)
+        
+        else: # 'raw'
+            processed_segment = segment
+
         if preprocess_config.get('normalize', False):
             processed_segment = minmax_normalize(processed_segment)
         
