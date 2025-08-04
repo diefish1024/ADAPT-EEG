@@ -88,7 +88,7 @@ def get_eeg_model(config: dict, preprocess_config: Dict[str, Any]) -> BaseModel:
         A complete BaseModel instance.
     """
     # 1. Create the feature extractor based on model and preprocessing configs
-    feature_extractor = get_feature_extractor(config['model'], preprocess_config)
+    feature_extractor = get_feature_extractor(config, preprocess_config)
     
     # 2. Get the actual output dimension from the instantiated feature extractor
     feature_extractor_out_dim = feature_extractor.output_dim

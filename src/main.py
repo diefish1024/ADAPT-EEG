@@ -63,8 +63,7 @@ def main(config_path: str):
         subject_ids=config['dataset'].get('source_train_subjects'),
         session_ids=config['dataset'].get('source_train_sessions'),
         task_type=task_type,
-        preprocess_config=preprocess_config,
-        sfreq=sfreq
+        preprocess_config=preprocess_config
     )
     source_val_dataset = get_eeg_dataset(
         dataset_name=dataset_name,
@@ -72,8 +71,7 @@ def main(config_path: str):
         subject_ids=config['dataset'].get('source_val_subjects'),
         session_ids=config['dataset'].get('source_val_sessions'),
         task_type=task_type,
-        preprocess_config=preprocess_config,
-        sfreq=sfreq
+        preprocess_config=preprocess_config
     )
 
     source_train_loader = DataLoader(source_train_dataset, 
@@ -95,8 +93,7 @@ def main(config_path: str):
         subject_ids=config['dataset'].get('target_test_subjects'),
         session_ids=config['dataset'].get('target_test_sessions'),
         task_type=task_type,
-        preprocess_config=preprocess_config,
-        sfreq=sfreq
+        preprocess_config=preprocess_config
     )
     target_test_loader = DataLoader(target_test_dataset,
                                     batch_size=config['tta'].get('test_batch_size', 32),
