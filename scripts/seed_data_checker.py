@@ -3,7 +3,7 @@
 import scipy.io as sio
 import os
 
-seed_eeg_dir = "/data/huangjiehang/seed/Preprocessed_EEG"
+seed_eeg_dir = "/data3/huangjiehang/seed/Preprocessed_EEG"
 eeg_file_path = os.path.join(seed_eeg_dir, '13_20140603.mat') # Pick one file to inspect
 
 try:

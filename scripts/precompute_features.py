@@ -12,8 +12,8 @@ sys.path.append(os.getcwd())
 from src.utils.eeg_preprocessing import apply_preprocessing_pipeline 
 from src.utils.config_parser import ConfigParser
 
-SOURCE_H5_DIR = "/data/huangjiehang/seed/seed_h5"
-DEST_FEATURES_DIR = "/data/huangjiehang/seed/seed_features_filtered" 
+SOURCE_H5_DIR = "/data3/huangjiehang/seed/seed_h5"
+DEST_FEATURES_DIR = "/data3/huangjiehang/seed/seed_features_filtered" 
 CONFIG_PATH = "configs/experiment_seed.yaml"
 
 def main():
