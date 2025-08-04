@@ -7,9 +7,9 @@ feature_extractor:
   
   emt_params:
       hidden_graph: 32
-      layers_transformer: 2
-      num_head: 8
-      dim_head: 16
+      layers_transformer: 4
+      num_head: 16
+      dim_head: 32
       dropout: 0.25
 
 model_head:

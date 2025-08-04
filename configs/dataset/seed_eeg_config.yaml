@@ -1,5 +1,5 @@
 name: SEED
-data_dir: "/data/huangjiehang/seed"
+data_dir: "/data3/huangjiehang/seed"
 sfreq: 200.0
 
 preprocess:
@@ -8,7 +8,7 @@ preprocess:
     target_sfreq: 128.0
   segment:
     enable: true
-    window_sec: 4.0
+    window_sec: 20
     step_sec: 4.0
   feature_extraction:
     enable: true
@@ -21,6 +21,6 @@ preprocess:
       gamma: [31, 45]
     sub_segment:
       enable: true
-      window_sec: 1.0
-      step_sec: 1.0
+      window_sec: 2
+      step_sec: 0.5
   normalize: true

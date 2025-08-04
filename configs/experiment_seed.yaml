@@ -31,11 +31,12 @@ training:
   epochs: 50
   optimizer:
     type: Adam
-    lr: 0.001
+    lr: 0.0003
+    weight_decay: 0.001
   early_stopping:
-    monitor_metric: "loss"
-    patience: 10
-    mode: "min" # 'min' for loss, 'max' for accuracy/R2
+    monitor_metric: "accuracy"
+    patience: 20
+    mode: "max" # 'min' for loss, 'max' for accuracy/R2
   log_interval: 10
   num_workers: 0 # the num of workers of Dataloader
   load_pretrained_checkpoint_path: null
