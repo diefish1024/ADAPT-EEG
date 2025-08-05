@@ -17,7 +17,7 @@ from src.trainers.source_trainer import SourceTrainer
 from src.trainers.tta_trainer import TTATrainer
 from src.utils.data_utils import custom_collate_fn
 
-def main(config_path: str, resume_from: str = None):
+def main(config_path: str, resume: str = None):
     # 1. Load Configuration
     config_parser = ConfigParser(config_path)
     config = config_parser.config
@@ -54,55 +54,59 @@ def main(config_path: str, resume_from: str = None):
 
     # Source Domain Data
     source_train_dataset = get_eeg_dataset(
-        dataset_name,
-        data_dir, config['subject_setup']['source_train_subjects'],
-        config['subject_setup']['source_train_sessions'],
-        task_config, preprocess_config
+        dataset_name=dataset_name,
+        data_dir=data_dir,
+        subject_ids=config['subject_setup']['source_train_subjects'],
+        session_ids=config['subject_setup']['source_train_sessions'],
+        task_config=task_config,
+        preprocess_config=preprocess_config
     )
     source_val_dataset = get_eeg_dataset(
-        dataset_name,
-        data_dir, config['subject_setup']['source_val_subjects'],
-        config['subject_setup']['source_val_sessions'],
-        task_config, preprocess_config
+        dataset_name=dataset_name,
+        data_dir=data_dir,
+        subject_ids=config['subject_setup']['source_val_subjects'],
+        session_ids=config['subject_setup']['source_val_sessions'],
+        task_config=task_config,
+        preprocess_config=preprocess_config
     )
     source_train_loader = DataLoader(
-        source_train_dataset,
+        dataset=source_train_dataset,
         batch_size=config['training']['batch_size'],
         shuffle=True,
-        num_workers=config['training'].get('num_workers', 0),
+        num_workers=config['training']['num_workers'],
         collate_fn=custom_collate_fn,
         drop_last=True
     )
     source_val_loader = DataLoader(
-        source_val_dataset,
+        dataset=source_val_dataset,
         batch_size=config['training']['batch_size'],
-        shuffle=False, num_workers=config['training'].get('num_workers', 0),
+        shuffle=False, num_workers=config['training']['num_workers'],
         collate_fn=custom_collate_fn
     )
     
     # Target Domain Data
     target_test_dataset = get_eeg_dataset(
-        dataset_name,
-        data_dir,
-        config['subject_setup']['target_test_subjects'],
-        config['subject_setup']['target_test_sessions'],
-        task_config,
-        preprocess_config
+        dataset_name=dataset_name,
+        data_dir=data_dir,
+        subject_ids=config['subject_setup']['target_test_subjects'],
+        session_ids=config['subject_setup']['target_test_sessions'],
+        task_config=task_config,
+        preprocess_config=preprocess_config
     )
     target_test_loader = DataLoader(
-        target_test_dataset,
+        dataset=target_test_dataset,
         batch_size=config['tta'].get('test_batch_size', 32),
-        shuffle=False, num_workers=config['training'].get('num_workers', 0),
+        shuffle=False, num_workers=config['training']['num_workers'],
         collate_fn=custom_collate_fn
     )
 
     # 4. Model Building
     main_logger.info("Initializing model...")
-    model = get_eeg_model(config['model'], preprocess_config).to(device)
+    model = get_eeg_model(config, preprocess_config).to(device)
 
     # 5. Source Domain Pre-training or Checkpoint Loading
-    # The --resume_from CLI argument takes precedence over the config file path.
-    checkpoint_to_load = resume_from or config['training'].get('load_pretrained_checkpoint_path')
+    # The --resume CLI argument takes precedence over the config file path.
+    checkpoint_to_load = resume or config['training'].get('load_pretrained_checkpoint_path')
     train_source_model = False
 
     if checkpoint_to_load:
@@ -142,4 +146,4 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, required=True, help="Path to the experiment configuration YAML file.")
     parser.add_argument('--resume', type=str, default=None, help="Optional path to a checkpoint file to resume training from.")
     args = parser.parse_args()
-    main(args.config, args.resume_from)
+    main(args.config, args.resume)
