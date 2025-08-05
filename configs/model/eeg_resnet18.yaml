@@ -1,0 +1,7 @@
+# configs/model/eeg_resnet18.yaml
+# Defines the EEG-ResNet18 feature extractor architecture.
+
+feature_extractor:
+  name: "eeg_resnet18"
+  embedding_dim: 256
+  in_channels: 62

@@ -1,0 +1,14 @@
+# configs/model/emt_cls.yaml
+# Defines the EmT feature extractor architecture.
+
+feature_extractor:
+  name: "emt_cls"
+  embedding_dim: 256
+  in_channels: 62
+  
+  emt_params:
+    hidden_graph: 32
+    layers_transformer: 4
+    num_head: 16
+    dim_head: 32
+    dropout: 0.25

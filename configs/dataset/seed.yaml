@@ -1,6 +1,10 @@
+# configs/dataset/seed.yaml
+# Defines everything related to the SEED dataset.
+
 name: SEED
 data_dir: "/data3/huangjiehang/seed"
-sfreq: 200.0
+sfreq: 200
+num_channels: 62
 
 preprocess:
   downsample:

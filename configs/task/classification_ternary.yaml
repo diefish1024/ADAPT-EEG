@@ -1,0 +1,15 @@
+# configs/task/classification_ternary.yaml
+# Defines a ternary classification task.
+
+type: "classification"
+num_classes: 3
+loss_function: "CrossEntropyLoss"
+metrics:
+  - "accuracy"
+  - "f1_weighted"
+  - "precision_weighted"
+  - "recall_weighted"
+
+model_head:
+  type: "classification"
+  num_classes: 3
