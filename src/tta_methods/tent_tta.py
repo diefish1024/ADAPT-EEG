@@ -4,6 +4,7 @@ import torch.nn as nn
 from src.tta_methods.base_tta import BaseTTAMethod
 from src.losses.tta_losses import EntropyMinimizationLoss
 from src.utils.logger import get_logger
+from typing import Dict
 
 logger = get_logger(__name__)
 
@@ -13,28 +14,19 @@ class Tent(BaseTTAMethod):
     Ref: https://arxiv.org/abs/2006.10726
     This implementation is generalized to adapt either BatchNorm or LayerNorm layers.
     """
-    def __init__(self, model, optimizer_config, adaptation_params_config, **kwargs):
+    def __init__(self, model: nn.Module, tta_config: Dict, device: torch.device):
         """
         Initializes the Tent TTA method.
-
-        Args:
-            model (nn.Module): The pre-trained model.
-            optimizer_config (dict): Optimizer configuration for the TTA phase.
-            adaptation_params_config (dict): Adaptation parameters configuration.
-            **kwargs: Other parameters passed to the base class.
         """
-        super().__init__(model, **kwargs)
+        super().__init__(model, device)
 
-        self.model.eval()  
-        self.optimizer_config = optimizer_config
-        self.adaptation_params_config = adaptation_params_config
+        self.optimizer_config = tta_config.get('optimizer', {})
+        self.adaptation_params_config = tta_config.get('adaptation_params', {})
         
         self.tent_loss_fn = EntropyMinimizationLoss(task_type='classification') 
 
-        # Configure model parameters for adaptation.
         self._configure_model()
 
-        # Initialize the optimizer, optimizing only the trainable parameters.
         trainable_params = [p for p in self.model.parameters() if p.requires_grad]
         if not trainable_params:
             logger.warning("Tent found no trainable parameters (BatchNorm or LayerNorm). The model will not be adapted.")
@@ -48,16 +40,16 @@ class Tent(BaseTTAMethod):
         Freezes or enables trainable status of model parameters.
         Tent adapts the parameters of normalization layers (BatchNorm or LayerNorm).
         """
+        self.model.eval() # Set model to eval mode globally.
+
         # Freeze all parameters by default.
         for param in self.model.parameters():
             param.requires_grad = False
 
         # Enable gradients for normalization layers.
         for module in self.model.modules():
-            # --- MODIFICATION START ---
             # Generalized to handle both BatchNorm and LayerNorm for wider model compatibility.
             if isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d, nn.LayerNorm)):
-            # --- MODIFICATION END ---
                 # For BN, this updates running stats. For LN, it's just for consistency.
                 module.train() 
                 # Enable gradients for the affine parameters (weight & bias) of the norm layer.
