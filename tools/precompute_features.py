@@ -1,4 +1,4 @@
-# scripts/precompute_features.py
+# tools/precompute_features.py
 
 import os
 import glob

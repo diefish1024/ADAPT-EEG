@@ -1,4 +1,4 @@
-# scripts/precompute_seed_prefixes.py
+# tools/precompute_seed_prefixes.py
 
 import os
 import glob

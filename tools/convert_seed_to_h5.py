@@ -1,3 +1,5 @@
+# tools/convert_seed_to_h5.py
+
 import os
 import glob
 import re

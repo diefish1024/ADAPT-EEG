@@ -1,4 +1,4 @@
-# scripts/seed_label_checker.py
+# tools/seed_label_checker.py
 
 import scipy.io as sio
 import os

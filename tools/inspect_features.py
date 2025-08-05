@@ -1,4 +1,4 @@
-# scripts/inspect_features.py
+# tools/inspect_features.py
 
 import h5py
 import numpy as np

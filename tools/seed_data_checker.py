@@ -1,4 +1,4 @@
-# scripts/seed_data_checker.py
+# tools/seed_data_checker.py
 
 import scipy.io as sio
 import os
