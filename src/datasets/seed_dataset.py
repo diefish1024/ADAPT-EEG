@@ -27,7 +27,7 @@ class SEEDDataset(BaseDataset):
                  data_dir: str,
                  subject_ids: List[int],
                  session_ids: List[int],
-                 task_type: str = 'classification',
+                 task_config: Dict[str, Any] = None,
                  preprocess_config: Dict[str, Any] = None,
                  transform: Optional[Callable] = None):
         
@@ -38,13 +38,26 @@ class SEEDDataset(BaseDataset):
 
         self.subject_ids = subject_ids
         self.session_ids = session_ids
-        self.task_type = task_type
+        self.task_type = task_config['type']
         self.preprocess_config = preprocess_config
 
         if self.task_type != 'classification':
             raise ValueError("SEED Dataset is primarily for classification tasks.")
         
-        self.label_mapping = {-1: 0, 0: 1, 1: 2} # neg, neu, pos
+        # Dynamically set label mapping based on the number of classes from the task config.
+        num_classes = task_config.get('num_classes', 3)
+        if num_classes == 2:
+            # For binary classification, map negative (-1) to 0 and positive (1) to 1.
+            # Neutral (0) samples will be ignored.
+            self.label_mapping = {-1: 0, 1: 1}
+            logger.info("Configured for BINARY classification (positive/negative).")
+        elif num_classes == 3:
+            # For 3-class classification, map negative (-1) to 0, neutral (0) to 1, and positive (1) to 2.
+            self.label_mapping = {-1: 0, 0: 1, 1: 2}
+            logger.info("Configured for 3-CLASS classification (positive/neutral/negative).")
+        else:
+            raise ValueError(f"Unsupported number of classes for SEED: {num_classes}. Must be 2 or 3.")
+
         self.global_trial_labels = self._load_global_labels()
         self._load_data()
         
@@ -107,6 +120,10 @@ class SEEDDataset(BaseDataset):
             
             # Get the correct label for this trial
             original_label = self.global_trial_labels[trial_num - 1]
+            # If the original label is not in our mapping (e.g., neutral label '0' in binary mode), skip this trial.
+            if original_label not in self.label_mapping:
+                continue
+            
             mapped_label = self.label_mapping[original_label]
 
             # Each sorted path is now a single sample
