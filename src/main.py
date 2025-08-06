@@ -106,14 +106,15 @@ def main(config_path: str, resume: str = None):
 
     # 5. Source Domain Pre-training or Checkpoint Loading
     # The --resume CLI argument takes precedence over the config file path.
-    checkpoint_to_load = resume or config['training'].get('load_pretrained_checkpoint_path')
+    checkpoint_to_load = resume or config['paths'].get('load_pretrained_checkpoint_path')
     train_source_model = False
 
     if checkpoint_to_load:
         if os.path.exists(checkpoint_to_load):
             main_logger.info(f"Loading pre-trained model from: {checkpoint_to_load}")
             try:
-                model.load_state_dict(torch.load(checkpoint_to_load, map_location=device))
+                checkpoint = torch.load(checkpoint_to_load, map_location=device)
+                model.load_state_dict(checkpoint['model_state_dict'])
                 main_logger.info("Model state dictionary loaded successfully.")
             except Exception as e:
                 main_logger.error(f"Failed to load checkpoint '{checkpoint_to_load}': {e}. Proceeding with source training.")
