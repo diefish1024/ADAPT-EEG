@@ -2,11 +2,13 @@
 # Experiment: Run Tent TTA on the SEED dataset using the EmT model for binary classification.
 
 experiment:
-  name: "SEED_EmT_Binary_Tent_LOSO"
+  name: "SEED_Tent"
   description: "LOSO TTA experiment on SEED with EmT model."
 
 paths:
   results_dir: "results"
+  load_pretrained_checkpoint_path: null
+  # "results/SEED_Tent/checkpoints/best_model.pth"
 
 # --- Module Assembly ---
 dataset:

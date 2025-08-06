@@ -9,4 +9,4 @@ adaptation_params:
 
 optimizer:
     type: Adam
-    lr: 0.0001
+    lr: 0.001
