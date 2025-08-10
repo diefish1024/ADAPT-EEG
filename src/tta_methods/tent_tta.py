@@ -14,16 +14,18 @@ class Tent(BaseTTAMethod):
     Ref: https://arxiv.org/abs/2006.10726
     This implementation is generalized to adapt either BatchNorm or LayerNorm layers.
     """
-    def __init__(self, model: nn.Module, tta_config: Dict, device: torch.device):
+    def __init__(self, model: nn.Module, config: Dict, device: torch.device):
         """
         Initializes the Tent TTA method.
         """
         super().__init__(model, device)
 
+        tta_config = config['tta']
+
         self.optimizer_config = tta_config.get('optimizer', {})
         self.adaptation_params_config = tta_config.get('adaptation_params', {})
         
-        self.tent_loss_fn = EntropyMinimizationLoss(task_type='classification') 
+        self.tent_loss_fn = EntropyMinimizationLoss(task_type=config['task']['task_type']) 
 
         self._configure_model()
 

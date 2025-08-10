@@ -39,7 +39,7 @@ class TTATrainer:
         
         self.tta_method = get_tta_method(
             model=self.model,
-            tta_config=config['tta'],
+            config=config,
             device=device
         )
         

@@ -1,0 +1,17 @@
+# configs/tta/cotta_tta_config.yaml
+
+method: "CoTTA"
+
+adapt_steps: 1
+
+adaptation_params:
+    steps_per_batch: 1
+    restoration_factor: 0.01
+
+    augmentations:
+        additive_noise:
+            noise_std: 0.01
+
+optimizer:
+    type: Adam
+    lr: 0.001

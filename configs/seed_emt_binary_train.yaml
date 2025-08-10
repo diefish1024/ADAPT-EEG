@@ -1,0 +1,34 @@
+# configs/seed_emt_binary_train.yaml
+# Experiment: Train a base model for TTA methods on the SEED dataset using the EmT model for binary classification.
+
+experiment:
+  name: "SEED_EmT"
+  description: "LOSO TTA experiment on SEED with EmT model."
+
+paths:
+  results_dir: "results"
+  load_pretrained_checkpoint_path: null
+
+# --- Module Assembly ---
+dataset:
+  _include: "dataset/seed.yaml"
+model:
+  _include: "model/emt_cls.yaml"
+task:
+  _include: "task/classification_binary.yaml"
+training:
+  _include: "training/default.yaml"
+tta:
+  enable: False
+
+# --- Experiment-Specific Parameters ---
+# Define parameters unique to this specific run.
+subject_setup:
+  source_train_subjects: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] 
+  source_train_sessions: [1, 2, 3] 
+
+  source_val_subjects: [14] 
+  source_val_sessions: [1, 2, 3] 
+
+  target_test_subjects: [15] 
+  target_test_sessions: [1, 2, 3]
