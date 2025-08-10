@@ -63,6 +63,12 @@ class SourceTrainer:
             mode=early_stopping_mode,
             verbose=True
         )
+
+        clipping_config = self.config['training'].get('gradient_clipping', {})
+        self.clip_grad_enabled = clipping_config.get('enable', False)
+        self.clip_max_norm = clipping_config.get('max_norm', 1.0)
+        if self.clip_grad_enabled:
+            logger.info(f"Gradient clipping enabled with max_norm={self.clip_max_norm}.")
         
         # Setup directories for saving results and checkpoints
         self.checkpoint_dir = checkpoint_dir
@@ -203,6 +209,8 @@ class SourceTrainer:
                     loss = self.loss_fn(labels, mu_pred, log_sigma_sq_pred)
                 
                 loss.backward() # Backward pass
+                if self.clip_grad_enabled:
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.clip_max_norm)
                 self.optimizer.step() # Update model parameters
 
                 total_train_loss += loss.item() * features.size(0)

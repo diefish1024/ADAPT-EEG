@@ -15,3 +15,6 @@ early_stopping:
   mode: "max"
 log_interval: 10
 num_workers: 4
+gradient_clipping:
+  enable: true
+  max_norm: 1.0
