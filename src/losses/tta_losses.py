@@ -4,6 +4,63 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional, Union, Dict, Literal
 
+class PICLoss(nn.Module):
+    """
+    Prediction-Informed Clustering (PIC) Loss.
+    This loss function promotes clustering of features based on soft pseudo-labels,
+    encouraging intra-class compactness and inter-class separability.
+    It is designed to be scale-invariant, preventing trivial solutions.
+    Ref: https://arxiv.org/abs/2410.06976
+    Args:
+        temperature (float): A temperature parameter for scaling logits before softmax,
+                             which can influence the sharpness of pseudo-labels.
+                             (Not used in current implementation, but can be added if needed)
+    """
+    def __init__(self, temperature: float = 1.0):
+        super().__init__()
+        # We keep it for future flexibility.
+        self.temperature = temperature
+    
+    def forward(self, feats: torch.Tensor, prob: torch.Tensor) -> torch.Tensor:
+        """
+        Calculates the Prediction-Informed Clustering (PIC) loss.
+        Args:
+            feats (torch.Tensor): Node/Graph features from the feature extractor,
+                                  shape (batch_size, feature_dim).
+            prob (torch.Tensor): Soft predictions (pseudo-labels) from the base TTA method,
+                                 shape (batch_size, num_classes).
+                                 It's expected to be detached to prevent gradients cycling back.
+        Returns:
+            torch.Tensor: The calculated PIC loss.
+        """
+        if feats.dim() != 2 or prob.dim() != 2:
+            raise ValueError("feats and prob must be 2-dimensional tensors (batch_size, feature_dim/num_classes).")
+        if feats.shape[0] != prob.shape[0]:
+            raise ValueError("Batch sizes of feats and prob must match.")
+        num_classes = prob.shape[1]
+        
+        sum_prob_per_class = prob.sum(dim=0).view(num_classes, 1)
+        
+        # Calculate centroids (means) for each pseudo-class
+        # (num_classes, feature_dim) = (num_classes, batch_size) @ (batch_size, feature_dim) / (num_classes, 1)
+        means = torch.zeros(num_classes, feats.shape[1], device=feats.device, dtype=feats.dtype)
+        valid_classes_mask = sum_prob_per_class.squeeze() > 1e-6 # More robust check
+        
+        if valid_classes_mask.any():
+            means[valid_classes_mask] = (prob[:, valid_classes_mask].T @ feats) / sum_prob_per_class[valid_classes_mask]
+        # Calculate squared distance from each feature to each centroid: (batch_size, num_classes)
+        sq_dist_to_means = torch.square(torch.cdist(feats, means, p=2))
+        # Calculate intra-class variance: Sigma_intra^2 = sum_i sum_c prob_ic * ||z_i - mu_c||^2
+        # (batch_size, num_classes) * (batch_size, num_classes) --> sum over all elements
+        var_intra = (prob * sq_dist_to_means).sum()
+        # Calculate total variance: Sigma_total^2 = sum_i ||z_i - mu_*||^2
+        # where mu_* is the global mean of features
+        global_mean = feats.mean(dim=0) # (feature_dim,)
+        var_total = torch.sum(torch.square(feats - global_mean))
+        # The PIC loss is the ratio of intra-class variance to total variance
+        loss = var_intra / (var_total + 1e-8) 
+        return loss
+
 class EntropyMinimizationLoss(nn.Module):
     """
     Entropy Minimization Loss, commonly used for Test-Time Adaptation (TTA).
