@@ -13,7 +13,8 @@ from .tta_losses import (
     InfoNCELoss,
     DomainAdversarialLoss,
     WeightedCORALLoss,
-    UncertaintyWeightedPseudoLabelLoss
+    UncertaintyWeightedPseudoLabelLoss,
+    PICLoss
 )
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,14 @@ def get_losses(config: Dict[str, Any]) -> Dict[str, nn.Module]:
         if tta_loss_config.get('consistency', {}).get('enable', False):
             loss_fns['tta_consistency_loss_fn'] = ConsistencyLoss()
             logger.info("Instantiated TTA loss: ConsistencyLoss.")
+        
+        if tta_method == 'adjmatrixmatcha': # Ensure this matches the method name
+            pic_loss_enable = tta_loss_config.get('pic_loss', {}).get('enable', False)
+            if pic_loss_enable:
+                # Optionally, get temperature from config if defined for PICLoss
+                temperature = tta_loss_config['pic_loss'].get('temperature', 1.0)
+                loss_fns['tta_pic_loss_fn'] = PICLoss(temperature=temperature)
+                logger.info(f"Instantiated TTA loss: PICLoss (temperature={temperature}).")
 
         if task_type == 'regression':
             if tta_loss_config.get('uncertainty_weighted_consistency', {}).get('enable', False):

@@ -37,7 +37,7 @@ class CoTTA(BaseTTAMethod):
     Ref: https://arxiv.org/abs/2203.13591
     """
     def __init__(self, model: nn.Module, config: Dict, device: torch.device):
-        super().__init__(model, device)
+        super().__init__(model, config, device)
 
         # Extract sub-configs from the main config dictionary
         tta_config = config.get('tta', {})

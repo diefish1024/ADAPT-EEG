@@ -2,7 +2,8 @@
 import torch
 import torch.nn as nn
 from abc import ABC, abstractmethod
-from src.utils.logger import get_logger # Assuming you have a common logger utility
+from src.utils.logger import get_logger
+from typing import Dict
 
 logger = get_logger(__name__)
 
@@ -15,7 +16,7 @@ class BaseTTAMethod(ABC):
     can work cohesively with any TTA method that conforms to this interface.
     """
 
-    def __init__(self, model: nn.Module, device: torch.device = None, **kwargs):
+    def __init__(self, model: nn.Module, config: Dict, device: torch.device = None):
         """
         Initializes the abstract base class for TTA methods.
 
@@ -34,11 +35,11 @@ class BaseTTAMethod(ABC):
         self.device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device) # Move the model to the specified device
 
-        # Store kwargs, allowing subclasses to access them without forcing
-        # all possible config parameters to be defined in the base class.
-        self.kwargs = kwargs 
+        self.config = config
+        self.tta_config = config['tta']
+        self.task_type = config['task']['type']
 
-        logger.info(f"BaseTTAMethod initialized for model on device: {self.device}")
+        # logger.debug(f"BaseTTAMethod initialized for model on device: {self.device}")
 
     @abstractmethod
     def adapt(self, target_batch: tuple):

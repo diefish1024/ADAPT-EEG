@@ -18,14 +18,12 @@ class Tent(BaseTTAMethod):
         """
         Initializes the Tent TTA method.
         """
-        super().__init__(model, device)
+        super().__init__(model, config, device)
 
-        tta_config = config['tta']
-
-        self.optimizer_config = tta_config.get('optimizer', {})
-        self.adaptation_params_config = tta_config.get('adaptation_params', {})
+        self.optimizer_config = self.tta_config.get('optimizer', {})
+        self.adaptation_params_config = self.tta_config.get('adaptation_params', {})
         
-        self.tent_loss_fn = EntropyMinimizationLoss(task_type=config['task']['task_type']) 
+        self.tent_loss_fn = EntropyMinimizationLoss(task_type=self.task_type) 
 
         self._configure_model()
 
@@ -35,7 +33,7 @@ class Tent(BaseTTAMethod):
             self.optimizer = None
         else:
             self.optimizer = self._get_optimizer(trainable_params)
-            logger.info(f"Initialized Tent TTA. Adapting {len(trainable_params)} parameters.")
+            # logger.debug(f"Initialized Tent TTA. Adapting {len(trainable_params)} parameters.")
 
     def _configure_model(self):
         """
@@ -59,7 +57,7 @@ class Tent(BaseTTAMethod):
                     param.requires_grad = True
 
         trainable_params_names = [name for name, param in self.model.named_parameters() if param.requires_grad]
-        logger.info(f"Tent configured. Trainable parameters: {trainable_params_names}")
+        # logger.debug(f"Tent configured. Trainable parameters: {trainable_params_names}")
 
     def _get_optimizer(self, params):
         """Returns an optimizer instance based on the configuration."""
