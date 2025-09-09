@@ -80,8 +80,8 @@ def get_metrics_calculator(task_type: str) -> Callable[[torch.Tensor, torch.Tens
     if task_type == 'classification':
         def classification_metrics_wrapper(y_true_tensor: torch.Tensor, y_pred_logits_tensor: torch.Tensor) -> Dict[str, float]:
             """Wrapper for classification metrics, handles tensor to numpy conversion."""
-            y_true_np = y_true_tensor.cpu().numpy()
-            y_pred_logits_np = y_pred_logits_tensor.cpu().numpy()
+            y_true_np = y_true_tensor.detach().cpu().numpy()
+            y_pred_logits_np = y_pred_logits_tensor.detach().cpu().numpy()
             return calculate_classification_metrics(y_true_np, y_pred_logits_np)
         return classification_metrics_wrapper
     elif task_type == 'regression':

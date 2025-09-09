@@ -1,0 +1,14 @@
+# configs/tta/adj_matrix_matcha.yaml
+
+method: "AdjMatrixMatcha"
+lr: 0.1
+loss_temperature: 100
+adaptation_params:
+  steps_per_batch: 1
+base_tta_method: "Tent"
+base_tta_config:
+  lr: 0.01
+  optimizer_type: "Adam"
+  adaptation_params:
+    steps_per_batch: 1
+
