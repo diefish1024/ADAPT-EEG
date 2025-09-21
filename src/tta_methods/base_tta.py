@@ -64,6 +64,18 @@ class BaseTTAMethod(ABC):
         """
         pass
 
+    @torch.no_grad()
+    def infer(self, target_batch: tuple):
+        """
+        Pure inference: no update, no grad, eval-mode forward.
+        Use this for pseudo-label generation in Matcha.
+        """
+        self.model.eval()
+        x = target_batch[0] if isinstance(target_batch, (tuple, list)) else target_batch
+        x = x.to(self.device, non_blocking=True)
+        logits = self.model(x)
+        return logits
+
     def __repr__(self):
         """
         Returns a string representation of the TTA method.
