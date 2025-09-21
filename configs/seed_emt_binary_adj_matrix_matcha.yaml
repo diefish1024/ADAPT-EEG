@@ -6,7 +6,7 @@ experiment:
 
 paths:
   results_dir: "results"
-  load_pretrained_checkpoint_path: "results/SEED_EmT/checkpoints/best_model.pth"
+  load_pretrained_checkpoint_path: "/home/huangjiehang/ADAPT-EEG/results/SEED_EmT/checkpoints/best_model_0921.pth"
   # "results/SEED_EmT/checkpoints/best_model.pth"
 
 # --- Module Assembly ---
